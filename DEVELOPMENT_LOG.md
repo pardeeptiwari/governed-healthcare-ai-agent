@@ -80,3 +80,18 @@ Clarified the README health check, Docker environment format, and baseline evide
 - Ran the documented evaluator command from that snapshot. The gate passed with 36/40 raw passes and four verified fixture conflicts. Measured p95 was 3.015 seconds on this run. The committed baseline was retained for comparison and is identified separately in the README.
 - Verified relative documentation links and four ADRs. A headless Chrome preview confirmed each of the four design sections fit an A4 text area at 11 pt, including the final Azure mapping. NOTES fit one page and the separate Mermaid diagram rendered.
 - Docker, hosted Actions, and live model execution remain unverified. AI assisted with documentation and local verification. M8 remains pending owner review before committing.
+
+## 2026-11-25 · M9 release validation and security review notes
+
+This is an implementation-side review of the release candidate. The repository owner approved M9 and the local release commit after receiving these findings.
+
+| Boundary | Evidence and remaining limits |
+|---|---|
+| Tenant and member scope | Reviewed identity-derived tenant routes, bound conversation scope, claim ownership, indexed policy provenance, and tenant/member claim cache keys. API and gateway tests cover foreign scope and mismatched ownership. The slice assumes upstream caller verification and uses demo rep credentials. Real rep-to-member authorization remains a production prerequisite. |
+| Untrusted content and minimum necessary data | The gateway uses a reviewed directory field allowlist and excludes claim notes from its projection. Retrieval quarantines wrong-tenant files and excludes fenced examples. Tests cover the directory request contract, note injection without a write, model projection, and audit-field redaction. Raw transport diagnostics are suppressed at CLI entry points. SQLite contains operational state and needs restricted access. |
+| Write approval and recovery | Tests cover cancellation, edited and expired drafts, foreign confirmations, concurrent replay, and a lost acknowledgment. The local reconciliation block applies within a conversation. Production recovery across processes and downstream restarts requires durable deduplication and lookup by operation ID. |
+| Publication hygiene | Scanned 85 unique tracked historical blobs across 12 commits for prohibited supplied-pack paths, exact mock credentials, and selected private-key and GitHub token signatures. None matched. The refreshed report contains only allowlisted case metadata, timings, and cost estimates. |
+
+- Ruff passed and all 30 pytest tests passed. The final mock replay ran all 40 conversations, passed all nine safety cases, and passed the gate with 36/40 raw passes and four verified fixture conflicts. Measured p95 was 3.016 seconds, above the three-second target.
+- Refreshed the sanitized release-candidate report and aligned the README and NOTES. Docker, hosted Actions, and live model execution remain unverified.
+- GitHub publication remains pending an approved destination and explicit push approval. The submission URL and final hash must be checked after publication and before the deadline calculated from the original receipt date.
