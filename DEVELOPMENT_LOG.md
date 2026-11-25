@@ -30,3 +30,11 @@ Tightened the existing gateway at the upstream boundary. Claim requests validate
 - Ruff passed. pytest passed all 15 tests, including new cases for retry limits, malformed pages, nested-field projection, and complete snapshot caching.
 - The external mock replay passed the gate with 36/40 raw passes and four verified fixture conflicts. The rerun report is local and ignored. The committed baseline was retained for comparison.
 - AI assisted with review, implementation, and verification. M2 changes are pending owner review before committing.
+
+## 2026-11-25 · M3 tenant-aware policy retrieval
+
+Hardened policy ingestion and retrieval. Front matter requires explicit delimiters and unique keys. Documents with wrong-tenant or invalid metadata are quarantined. Markdown tables inside fenced examples are skipped. Eligible rows are filtered by tenant, product, plan year, and effective date before ranking. Retrieval keeps the source filename and abstains when equally applicable rows disagree.
+
+- Ruff passed. pytest passed all 18 tests. New fixtures cover tenant and product isolation, effective-date boundaries, renewal years, missing evidence, metadata quarantine, and conflicting rows.
+- The external mock replay passed the regression gate with 36/40 raw passes and four verified fixture conflicts. The wrong-tenant document remained excluded. The rerun report is local and ignored.
+- AI assisted with review, implementation, and verification. M3 changes are pending owner review before committing.
