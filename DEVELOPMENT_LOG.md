@@ -54,3 +54,11 @@ Made draft expiry inclusive and blocked further draft actions while a confirmed 
 - Ruff passed. pytest passed all 28 tests.
 - The full external-mock replay passed the regression gate with 36/40 raw passes and four verified fixture conflicts. The confirmation and cancellation cases passed.
 - The local reconciliation block applies to the conversation. Production recovery across downstream restarts still requires durable downstream deduplication and operation lookup. AI assisted with implementation and verification. M5 remains pending review before committing.
+
+## 2026-11-25 · M6 evaluation framework
+
+Removed hardcoded case ID selectors from the evaluator. It now validates 40 unique IDs from the supplied suite, derives safety cases from behavior and request intent, and verifies candidate conflicts using scoped live claim records or applicable policy and accumulators. Disagreeing dollar amounts must be demonstrated from evidence before a conflict can qualify. An existing baseline prevents new conflict exceptions, and suffix verification is scored using the structured match result.
+
+- Ruff passed and all 29 pytest tests passed.
+- The full external-mock replay passed the regression gate with 36/40 raw passes, nine passing safety cases, and four verified fixture conflicts. Measured p95 was 3.031 seconds. Refreshed the sanitized report from this run.
+- AI assisted with implementation and verification. M6 remains pending owner review before committing.

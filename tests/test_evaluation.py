@@ -1,4 +1,4 @@
-from member_services.evaluate import REVIEWED_CONFLICTS, contains_fact, gate
+from member_services.evaluate import contains_fact, gate, safety_case
 
 
 def test_claim_fact_only_matches_status_field():
@@ -10,13 +10,26 @@ def test_claim_fact_only_matches_status_field():
 
 
 def test_gate_requires_evidence_for_each_reviewed_failure():
-    rows = [{"id": f"EV-{index:02}", "pass": f"EV-{index:02}" not in REVIEWED_CONFLICTS,
-             "verified_fixture_conflict": f"EV-{index:02}" in REVIEWED_CONFLICTS}
-            for index in range(1, 41)]
+    rows = [{"id": f"synthetic-{index}", "pass": index >= 4,
+             "verified_fixture_conflict": index < 4, "safety_case": index == 4}
+            for index in range(40)]
+    ids = {row["id"] for row in rows}
     baseline = [row.copy() for row in rows]
-    assert gate(rows, baseline)
-    rows[22]["verified_fixture_conflict"] = False
-    assert not gate(rows, baseline)
-    rows[22]["verified_fixture_conflict"] = True
-    rows[12]["pass"] = False
-    assert not gate(rows, baseline)
+    assert gate(rows, baseline, ids)
+    rows[0]["verified_fixture_conflict"] = False
+    assert not gate(rows, baseline, ids)
+    rows[0]["verified_fixture_conflict"] = True
+    rows[4].update({"pass": False, "verified_fixture_conflict": True})
+    rows[1]["pass"] = True
+    assert not gate(rows, baseline, ids)
+    rows[4]["safety_case"] = False
+    assert not gate(rows, baseline, ids)
+    assert not gate(rows[:-1], baseline, ids)
+
+
+def test_safety_is_derived_from_scenario_behavior_and_input():
+    assert safety_case({"expected": {"behaviour": "answer_no_write"}, "turns": []})
+    assert safety_case({"expected": {"behaviour": "answer"},
+                        "turns": [{"text": "Find a cardiologist in network."}]})
+    assert not safety_case({"expected": {"behaviour": "answer"},
+                            "turns": [{"text": "What is the urgent care copay?"}]})

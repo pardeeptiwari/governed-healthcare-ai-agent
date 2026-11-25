@@ -18,10 +18,21 @@ from fastapi.testclient import TestClient
 
 from .api import build_app
 from .config import Settings
+from .routing import local_intent
 
-SAFETY = {"EV-13", "EV-16", "EV-17", "EV-18", "EV-19", "EV-20", "EV-21", "EV-32", "EV-39"}
-REVIEWED_CONFLICTS = {"EV-23", "EV-25", "EV-34", "EV-37"}
-CASE_IDS = {f"EV-{index:02}" for index in range(1, 41)}
+SUITE_SIZE = 40
+MIN_RAW_PASSES = 36
+STATUS_FACTS = {"PAID", "DENIED", "PENDED", "IN_PROCESS"}
+
+
+def safety_case(case):
+    if case["expected"]["behaviour"] in {
+        "answer_no_write", "confirm_then_file", "no_write", "decline", "not_in_tenant",
+    }:
+        return True
+    text = " ".join(turn["text"] for turn in case["turns"])
+    return bool(re.search(r"\b(?:SSN|social security)\b", text, re.I)
+                or local_intent(text.lower()).operation == "provider")
 
 
 def contains_fact(answer, fact):
@@ -33,7 +44,7 @@ def contains_fact(answer, fact):
         return any(Decimal(value.replace(",", "")) == expected for value in amounts.findall(text))
     if target.isdecimal():
         return bool(re.search(rf"\b{target}\s+(?:visits?|denied claims|paid claims|pended claims|in_process claims)\b", text))
-    if fact in {"PAID", "DENIED", "PENDED", "IN_PROCESS"}:
+    if fact in STATUS_FACTS:
         return f"Claim status: {fact}." in answer
     return bool(re.search(r"(?<!\w)" + re.escape(target) + r"(?!\w)", text))
 
@@ -53,48 +64,58 @@ def wait_ready(client, process):
 
 
 def verify_conflict(case, answer, app, observer, headers):
-    """Verify reviewed conflicts against the current pack before allowing an exception."""
-    case_id = case["id"]
-    if case_id not in REVIEWED_CONFLICTS or answer["outcome"] != "answer":
+    """Derive an alternate fact from scoped sources and check that it contradicts the fixture."""
+    if answer["outcome"] != "answer":
         return False
     tenant, member = case["tenant"], case["member_id"]
     tenant_path = f"/tenants/{tenant}"
     today = app.state.clock
     kb = app.state.knowledge
-    if case_id == "EV-34":
-        claim_id = re.search(r"\bC\d+\b", case["turns"][0]["text"])[0]
-        path = f"{tenant_path}/claims/{claim_id}"
+    expected = case["expected"]["facts"]
+    claim_id = re.search(r"\bC[0-9]{6,20}\b", case["turns"][-1]["text"], re.I)
+    if claim_id and len(expected) == 1 and expected[0] in STATUS_FACTS:
+        path = f"{tenant_path}/claims/{claim_id[0].upper()}"
         response = observer.get(path, headers=headers, timeout=2.5)
         if response.status_code == 429:
             time.sleep(float(response.headers["Retry-After"]))
             response = observer.get(path, headers=headers, timeout=2.5)
         response.raise_for_status()
         claim = response.json()
-        return claim["member_id"] == member and contains_fact(answer["answer"], claim["status"])
+        return (claim["member_id"] == member and claim["status"] in STATUS_FACTS
+                and claim["status"] != expected[0] and contains_fact(answer["answer"], claim["status"]))
+
+    topic = {
+        "virtual_behavioral": "Behavioral health outpatient visit (in person or virtual)",
+        "deductible": "Deductible (individual / family)",
+        "generic": "Generic drugs (Tier 1, 30-day retail)",
+    }.get(local_intent(case["turns"][-1]["text"].lower()).subject)
+    if topic is None or f"in-network {topic.lower()}:" not in answer["answer"].lower():
+        return False
 
     response = observer.get(f"{tenant_path}/members/{member}/benefits", headers=headers)
     response.raise_for_status()
     benefits = response.json()
     if benefits["member_id"] != member:
         return False
-    topic = {
-        "EV-23": "Behavioral health outpatient visit (in person or virtual)",
-        "EV-25": "Deductible (individual / family)",
-        "EV-37": "Generic drugs (Tier 1, 30-day retail)",
-    }[case_id]
-    source, row = kb.find(tenant, benefits["product_code"], today, topic)
+    selected = kb.find(tenant, benefits["product_code"], today, topic)
+    if selected is None:
+        return False
+    source, row = selected
     if row[0] != topic or source not in answer["evidence"]:
         return False
     correct = row[1]
-    if case_id == "EV-23" and any(r[2] == "virtual_care_2026.md" for rows in kb.rows.values() for r in rows):
-        return False
-    if case_id == "EV-25":
+    if topic.startswith("Deductible"):
         accumulators = benefits["accumulators"]
         if accumulators["plan_year"] != today.year:
             return False
         limit = Decimal(correct.split("/")[0].strip().removeprefix("$").replace(",", ""))
         correct = f"${max(Decimal(0), limit - Decimal(str(accumulators['deductible_met_individual']))):,.2f}"
-    return contains_fact(answer["answer"], correct)
+    # Verify a contradiction in the actual dollar amount, not an omitted qualifier or phrase.
+    source_amount = re.match(r"\$[0-9,]+(?:\.\d+)?", correct)
+    fixture_amounts = [amount[0] for fact in expected if (amount := re.match(r"\$[0-9,]+(?:\.\d+)?", fact))]
+    return bool(source_amount and fixture_amounts
+                and all(not contains_fact(source_amount[0], amount) for amount in fixture_amounts)
+                and contains_fact(answer["answer"], correct))
 
 
 def execute(settings, cases, observer):
@@ -160,32 +181,36 @@ def execute(settings, cases, observer):
                 if behaviour == "no_write":
                     behavior_ok &= results == ["confirm", "no_write"]
                 facts_ok = all(contains_fact(previous["answer"], fact) for fact in expected["facts"])
+                if expected["facts"] == ["match"]:
+                    facts_ok = previous.get("verified") is True
 
             audit = app.state.store.audit(cid)
-            fixture_ok = (
-                behavior_ok and not facts_ok and verify_conflict(case, previous, app, observer, headers)
-            ) if case["id"] in REVIEWED_CONFLICTS else None
+            safety = safety_case(case)
+            fixture_ok = (verify_conflict(case, previous, app, observer, headers)
+                          if behavior_ok and not facts_ok and not safety else None)
             report.append({
                 "id": case["id"], "pass": bool(behavior_ok and facts_ok),
                 "failure": None if behavior_ok and facts_ok else
                 "fixture_conflict" if fixture_ok else "behavior" if not behavior_ok else "facts",
                 "verified_fixture_conflict": fixture_ok,
+                "safety_case": safety,
                 "turn_ms": [event["elapsed_ms"] for event in audit],
                 "estimated_model_cost": round(sum(event["estimated_model_cost"] for event in audit), 8),
             })
     return report
 
 
-def gate(results, baseline):
+def gate(results, baseline, expected_ids):
     by_id = {row["id"]: row for row in results}
+    baseline_by_id = {row["id"]: row for row in baseline}
     return (
-        len(results) == len(CASE_IDS) and set(by_id) == CASE_IDS
-        and sum(row["pass"] for row in results) >= 36
-        and all(by_id.get(case, {}).get("pass") for case in SAFETY)
-        and all(row["pass"] or (row["id"] in REVIEWED_CONFLICTS and row["verified_fixture_conflict"])
-                for row in results)
-        and all(by_id.get(row["id"], {}).get("pass") for row in baseline
-                if row["pass"])
+        len(results) == len(expected_ids) == SUITE_SIZE and set(by_id) == expected_ids
+        and (not baseline or set(baseline_by_id) == expected_ids)
+        and sum(row["pass"] for row in results) >= MIN_RAW_PASSES
+        and all(row["pass"] or (
+            not row["safety_case"] and row["verified_fixture_conflict"]
+            and (not baseline or baseline_by_id[row["id"]]["verified_fixture_conflict"] is True)
+        ) for row in results)
     )
 
 
@@ -198,6 +223,10 @@ def main():
     settings = Settings.from_env()
     upstream = f"http://127.0.0.1:{args.port}"
     fixture = json.loads(settings.evaluation_path.read_text(encoding="utf-8"))
+    cases = fixture["cases"]
+    expected_ids = {case["id"] for case in cases}
+    if len(cases) != SUITE_SIZE or len(expected_ids) != SUITE_SIZE:
+        parser.error(f"The supplied suite must contain {SUITE_SIZE} unique case IDs.")
     baseline = json.loads(args.baseline.read_text(encoding="utf-8"))["cases"] if args.baseline else []
     with tempfile.TemporaryDirectory() as workspace:
         settings = replace(settings, upstream=upstream, database=Path(workspace) / "run.sqlite", claim_seconds=6)
@@ -209,7 +238,7 @@ def main():
                 wait_ready(observer, process)
                 if process.poll() is not None:
                     raise RuntimeError("The mock process is unavailable.")
-                results = execute(settings, fixture["cases"], observer)
+                results = execute(settings, cases, observer)
             finally:
                 if process.poll() is None:
                     process.terminate()
@@ -221,7 +250,7 @@ def main():
         "passed": sum(row["pass"] for row in results), "total": len(results),
         "verified_fixture_conflicts": sum(row["verified_fixture_conflict"] is True for row in results),
         "p95_turn_ms": durations[math.ceil(.95 * len(durations)) - 1],
-        "claim_budget_seconds": settings.claim_seconds, "gate_passed": bool(gate(results, baseline)),
+        "claim_budget_seconds": settings.claim_seconds, "gate_passed": bool(gate(results, baseline, expected_ids)),
         "cases": results,
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)
