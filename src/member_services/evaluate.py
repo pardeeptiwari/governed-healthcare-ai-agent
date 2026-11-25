@@ -42,7 +42,11 @@ def contains_fact(answer, fact):
     expected_amount = amounts.fullmatch(target)
     if expected_amount:
         expected = Decimal(expected_amount[1].replace(",", ""))
-        return any(Decimal(value.replace(",", "")) == expected for value in amounts.findall(text))
+        return any(
+            Decimal(match[1].replace(",", "")) == expected
+            and not re.search(r"\b(?:not|never)\b[^.;:$]*$", text[:match.start()])
+            for match in amounts.finditer(text)
+        )
     if target.isdecimal():
         return bool(re.search(rf"\b{target}\s+(?:visits?|denied claims|paid claims|pended claims|in_process claims)\b", text))
     if fact in STATUS_FACTS:
@@ -120,6 +124,15 @@ def verify_conflict(case, answer, app, observer, headers):
 
 
 def execute(settings, cases, observer):
+    # The isolated assessment runner acts as the verifier for fixture members.
+    # The runtime itself accepts only server-configured member entitlements.
+    members = {}
+    for case in cases:
+        members.setdefault(case["tenant"], set()).add(case["member_id"])
+    settings = replace(settings, reps={
+        token: {**rep, "member_ids": sorted(members.get(rep["tenant"], ()))}
+        for token, rep in settings.reps.items()
+    })
     app = build_app(settings)
     report = []
     with TestClient(app) as client:
@@ -146,6 +159,7 @@ def execute(settings, cases, observer):
             previous = None
             results = []
             counts = []
+            turn_ms = []
             replay_ok = True
             for turn in case["turns"]:
                 body = {"turn_id": uuid4().hex, "message": turn["text"]}
@@ -159,7 +173,9 @@ def execute(settings, cases, observer):
                     if action:
                         body = {"turn_id": body["turn_id"], "action": action,
                                 "draft_id": previous["draft"]["id"]}
+                started = time.perf_counter()
                 response = client.post(endpoint, headers=rep, json=body)
+                turn_ms.append(round((time.perf_counter() - started) * 1000))
                 response.raise_for_status()
                 previous = response.json()
                 results.append(previous["outcome"])
@@ -195,7 +211,11 @@ def execute(settings, cases, observer):
                 "fixture_conflict" if fixture_ok else "behavior" if not behavior_ok else "facts",
                 "verified_fixture_conflict": fixture_ok,
                 "safety_case": safety,
-                "turn_ms": [event["elapsed_ms"] for event in audit],
+                "turn_ms": turn_ms,
+                "downstream_calls": sum(event.get("downstream", False) for turn in audit for event in turn["events"]),
+                "retries": sum(event.get("retry", False) for turn in audit for event in turn["events"]),
+                "claim_calls": sum(event.get("downstream", False) and event["operation"] in {"claim", "claim_page"}
+                                   for turn in audit for event in turn["events"]),
                 "estimated_model_cost": round(sum(event["estimated_model_cost"] for event in audit), 8),
             })
     return report
@@ -221,6 +241,8 @@ def main():
     parser.add_argument("--report", type=Path, default=Path("evaluation/report.json"))
     parser.add_argument("--baseline", type=Path)
     parser.add_argument("--port", type=int, default=8091)
+    parser.add_argument("--claim-budget-seconds", type=float,
+                        help="Override the runtime claims allowance for a diagnostic comparison.")
     args = parser.parse_args()
     settings = Settings.from_env()
     upstream = f"http://127.0.0.1:{args.port}"
@@ -231,7 +253,12 @@ def main():
         parser.error(f"The supplied suite must contain {SUITE_SIZE} unique case IDs.")
     baseline = json.loads(args.baseline.read_text(encoding="utf-8"))["cases"] if args.baseline else []
     with tempfile.TemporaryDirectory() as workspace:
-        settings = replace(settings, upstream=upstream, database=Path(workspace) / "run.sqlite", claim_seconds=6)
+        if args.claim_budget_seconds is not None:
+            if not math.isfinite(args.claim_budget_seconds) or args.claim_budget_seconds <= 0:
+                parser.error("The diagnostic claims allowance must be finite and positive.")
+            settings = replace(settings, claim_seconds=args.claim_budget_seconds)
+        settings = replace(settings, upstream=upstream, database=Path(workspace) / "run.sqlite",
+                           grievance_durable_replay=False)
         with httpx.Client(base_url=upstream, timeout=.5, trust_env=False) as observer:
             process = subprocess.Popen([sys.executable, "-B", str(settings.mock_script),
                                         "--port", str(args.port)],
@@ -251,7 +278,10 @@ def main():
         "suite_version": fixture["version"], "mode": "model" if settings.model_url else "local_rules",
         "passed": sum(row["pass"] for row in results), "total": len(results),
         "verified_fixture_conflicts": sum(row["verified_fixture_conflict"] is True for row in results),
+        "p50_turn_ms": durations[math.ceil(.50 * len(durations)) - 1],
         "p95_turn_ms": durations[math.ceil(.95 * len(durations)) - 1],
+        "max_turn_ms": max(durations),
+        **{key: sum(row[key] for row in results) for key in ("downstream_calls", "claim_calls", "retries")},
         "claim_budget_seconds": settings.claim_seconds, "gate_passed": bool(gate(results, baseline, expected_ids)),
         "cases": results,
     }

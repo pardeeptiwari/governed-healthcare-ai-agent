@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from member_services.gateway import Budget, Gateway, Unavailable
+from member_services.gateway import Budget, Deadline, Gateway, Unavailable
 
 
 def gateway(client, seconds=5, steps=8):
@@ -55,7 +55,7 @@ def test_malformed_page_and_unapproved_specialty_fail_closed():
     asyncio.run(run())
 
 
-def test_claim_projects_nested_fields_and_caches_only_complete_pages():
+def test_claim_projects_nested_fields_and_resumes_incomplete_cache():
     calls = []
     claim = {
         "claim_id": "C123456", "member_id": "M1234", "service_date": "2026-11-01",
@@ -76,10 +76,80 @@ def test_claim_projects_nested_fields_and_caches_only_complete_pages():
             tool = gateway(client)
             pages = tool.claim_pages()
             first = await anext(pages)
-            assert not tool.claim_cache
+            assert tool.claim_cache[("plan_a", "M1234")][2] == 5
             assert "private" not in str(first)
             assert len(await anext(pages)) == 1
             assert [len(page) async for page in tool.claim_pages()] == [5, 1]
 
     asyncio.run(run())
     assert len(calls) == 2
+
+
+def test_complete_page_rejects_cross_tenant_continuation():
+    calls = []
+    claim = {
+        "claim_id": "C123456", "member_id": "M1234", "service_date": "2026-11-01",
+        "processed_date": None, "status": "PENDED", "plan_paid": None,
+        "service": {}, "member_responsibility": {}, "denial": None,
+    }
+
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(200, json={
+            "data": [claim] * 5,
+            "next": "/tenants/plan_b/members/M1234/claims?cursor=5&page_size=5",
+        })
+
+    async def run():
+        async with httpx.AsyncClient(base_url="http://mock", transport=httpx.MockTransport(respond)) as client:
+            tool = gateway(client)
+            with pytest.raises(Unavailable):
+                await anext(tool.claim_pages())
+            assert not tool.claim_cache
+            assert tool.budget.events[-1] == {"operation": "pagination", "decision": "deny"}
+
+    asyncio.run(run())
+    assert len(calls) == 1
+
+
+def test_claim_cache_isolated_and_aggregate_cannot_consume_only_a_prefix():
+    calls = []
+
+    async def respond(request):
+        calls.append((request.url.path, request.url.params["cursor"]))
+        if request.url.params["cursor"] == "5":
+            await asyncio.sleep(0.2)
+        claim = {
+            "claim_id": "C123456", "member_id": "M1234", "service_date": "2026-11-01",
+            "processed_date": None, "status": "PENDED", "plan_paid": None,
+            "service": {}, "member_responsibility": {}, "denial": None,
+        }
+        return httpx.Response(200, json={"data": [claim] * 5,
+            "next": str(request.url.path) + "?cursor=5&page_size=5"})
+
+    async def run():
+        async with httpx.AsyncClient(base_url="http://mock", transport=httpx.MockTransport(respond)) as client:
+            first = gateway(client)
+            pages = first.claim_pages()
+            assert len(await anext(pages)) == 5
+            await pages.aclose()
+
+            foreign_settings = SimpleNamespace(upstream_tokens={"plan_b": "synthetic"})
+            foreign = Gateway(foreign_settings, client, None, "plan_b", "M1234",
+                              Budget(8, monotonic() + 5, 0), first.claim_cache)
+            pages = foreign.claim_pages()
+            assert len(await anext(pages)) == 5
+            await pages.aclose()
+
+            first.budget.deadline = monotonic() + 0.05
+            with pytest.raises(Deadline):
+                _ = [page async for page in first.claim_pages(allow_prefix=False)]
+            assert first.claim_cache[("plan_a", "M1234")][2] == 5
+
+    asyncio.run(run())
+    assert calls == [
+        ("/tenants/plan_a/members/M1234/claims", "0"),
+        ("/tenants/plan_b/members/M1234/claims", "0"),
+        ("/tenants/plan_a/members/M1234/claims", "0"),
+        ("/tenants/plan_a/members/M1234/claims", "5"),
+    ]

@@ -26,7 +26,9 @@ def scenario(tmp_path, request):
         encoding="utf-8",
     )
     settings = Settings(pack, "http://mock", tmp_path / "state.sqlite",
-                        {"a": {"tenant": "plan_a", "rep": "rep-a"}, "b": {"tenant": "plan_b", "rep": "rep-b"}},
+                        {"a": {"tenant": "plan_a", "rep": "rep-a", "member_ids": ["M1111"]},
+                         "b": {"tenant": "plan_b", "rep": "rep-b", "member_ids": ["M1111"]},
+                         "other": {"tenant": "plan_a", "rep": "other", "member_ids": ["M2222"]}},
                         {"plan_a": "tenant-a", "plan_b": "tenant-b"}, "directory")
     outgoing = []
     writes = {}
@@ -107,6 +109,23 @@ def test_scope_and_policy_projection(scenario):
     assert turn(client, cid, turn_id="6", message="How many denied claims?").json()["outcome"] == "cannot_answer"
     assert not writes
     assert not any(r.url.host == "elsewhere" for r in outgoing)
+
+
+def test_same_tenant_member_entitlement_is_required(scenario, caplog):
+    caplog.set_level("INFO", logger="member_services.access")
+    client, outgoing, _ = scenario
+    foreign_rep = {"Authorization": "Bearer other"}
+    cid = conversation(client)
+    assert client.post("/v1/conversations", headers=foreign_rep, json={"member_id": "M1111"}).status_code == 404
+    assert client.post("/v1/conversations", headers=A, json={"member_id": "M2222"}).status_code == 404
+    assert turn(client, cid, foreign_rep, turn_id="1", message="Specialist visit").status_code == 404
+    assert len(outgoing) == 1
+    decisions = [record.getMessage() for record in caplog.records if record.name == "member_services.access"]
+    assert decisions == [
+        "operation=conversation_start decision=member_denied",
+        "operation=conversation_start decision=member_denied",
+        "operation=turn decision=conversation_denied",
+    ]
 
 
 def test_identity_and_directory_minimization(scenario):
@@ -191,8 +210,10 @@ def test_edited_and_foreign_drafts_require_their_own_approval(scenario):
     client, _, writes = scenario
     cid, foreign = conversation(client), conversation(client)
     initial = turn(client, cid, turn_id="one", message="File a billing grievance.").json()["draft"]
-    revised = turn(client, cid, turn_id="two", message="File a quality of care grievance.").json()["draft"]
+    revised = turn(client, cid, turn_id="two",
+                   message="File an expedited quality of care grievance.").json()["draft"]
     assert revised["id"] != initial["id"]
+    assert revised["expedite_requested"] is True
     assert turn(client, cid, turn_id="three", action="confirm", draft_id=initial["id"]).json()["outcome"] == "no_write"
     assert turn(client, foreign, turn_id="one", action="confirm", draft_id=revised["id"]).json()["outcome"] == "no_write"
     assert turn(client, cid, B, turn_id="four", action="confirm", draft_id=revised["id"]).status_code == 404
@@ -229,6 +250,11 @@ def test_lost_write_acknowledgment_blocks_further_creates(scenario):
     assert turn(client, cid, turn_id="two", **action).json() == original
     assert turn(client, cid, turn_id="three", **action).json()["outcome"] == "pending_reconciliation"
     assert turn(client, cid, turn_id="four", message="File a billing grievance.").json()["outcome"] == (
+        "pending_reconciliation"
+    )
+    other = conversation(client)
+    other_draft = turn(client, other, turn_id="one", message="File a billing grievance.").json()["draft"]
+    assert turn(client, other, turn_id="two", action="confirm", draft_id=other_draft["id"]).json()["outcome"] == (
         "pending_reconciliation"
     )
     assert sum(request.method == "POST" for request in outgoing) == 1

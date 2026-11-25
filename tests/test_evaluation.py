@@ -7,6 +7,7 @@ def test_claim_fact_only_matches_status_field():
     assert not contains_fact("2026: 18 claims processed", "18")
     assert contains_fact("18 visits remaining.", "18")
     assert not contains_fact("Remaining: $12,300.", "$2,300")
+    assert not contains_fact("The copay is not $25.", "$25")
 
 
 def test_gate_requires_evidence_for_each_reviewed_failure():

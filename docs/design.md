@@ -6,9 +6,11 @@ Deploy one regional Cloud Run entry point with separate tenant workloads and ide
 
 Measure monthly successful workflow availability against 99.99%, about 4.3 minutes of monthly downtime in 30 days. Alert on error-budget burn, p95 by workflow, unresolved writes, and dependency saturation. Model, upstream, and regional failures remain part of the availability risk. Validate zonal failover and backup restore before launch. A regional outage can exhaust the error budget because year-one hosting is confined to one region.
 
-A cold claims call takes about 1.5 seconds and a second serial page exhausts the three-second target before model overhead. A quota response can add a one-second wait. Use a freshness-bounded claims read model populated from authorized change events for indexed status, date, and aggregate reads. Require a freshness SLA and show the snapshot time. Outside the freshness window, use a budgeted live read or report unavailable. Measure degraded outcomes separately under peak load. Compare warm and cold distributions before claiming target compliance.
+A cold claims call takes about 1.5 seconds and a second serial page exhausts the three-second target before model overhead. A quota response can add a one-second wait. Prefer an authorized tenant/member query by service date, type, status and plan year, with exact aggregates or snapshot-bound continuation. An authorized change feed is an alternative for a freshness-bounded read model. Require a freshness SLA and show the snapshot time. Outside the freshness window, use a budgeted live read or report unavailable. Measure cold, warm, throttled and degraded outcomes separately under peak load.
 
 At 20,000 conversations/day the spending ceiling is $600/day. Measure input/output token use, database and container usage, network and audit storage, and warm capacity. Price measured workloads in the deployment region and load-test Monday demand separately from average spend. The local report measures the slice and does not establish production cost or SLO compliance.
+
+For the first sizing run, assume 250 active reps each send one turn every 15 seconds. That is about 17 turns per second and 50 in flight at three seconds per turn. Test that sustained load and a simultaneous 250-turn burst against both tenants, with cold and warm claims, throttling and filing in the traffic mix. Replace the assumed turn rate with observed rep traffic before purchasing capacity.
 
 ## Page 2 · Threat model and operations
 
@@ -21,7 +23,7 @@ At 20,000 conversations/day the spending ceiling is $600/day. Measure input/outp
 | Duplicate or lost filing after ambiguous acknowledgment | Persist intent and immutable payload before dispatch. Use the same key during bounded retry. Require production downstream lookup and durable deduplication. Resume unresolved intents only once deduplication is verified. |
 | Malicious continuations, upstream outages, and cost abuse | Fixed destinations and credentials, disabled redirects, validated pagination, request budgets, timeout handling, and tenant-level quotas. Alert on degraded answers and drift in usage. |
 
-The slice uses local rep credentials, SQLite, and the mock system of record. Production rollout requires corporate identity, rep-to-member authorization, encrypted shared state, and a durable downstream idempotency contract with operation lookup. See the [evaluation report](../evaluation/report.json) for measured slice results.
+The slice uses local rep credentials with explicit member entitlements, SQLite, and the mock system of record. Production requires corporate identity, trusted entitlement provisioning and encrypted shared state. Expose a tenant/member-scoped operation lookup by idempotency key that returns the durable commit state, payload hash and receipt. Persist deduplication atomically with the write across restarts and failover, reject hash conflicts and retain keys through the recovery window. Keep mock ambiguity in manual review. See the [M11.1 review](../FINAL_REVIEW.md) for measured results and acceptance criteria.
 
 Roll out through shadow reads, then a rep pilot with supervised writes. Review audit completeness, data access, accuracy, latency, and pending write age before expanding. Roll back by disabling new writes and reconciling in-flight intents before changing the service revision.
 

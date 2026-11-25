@@ -10,7 +10,7 @@ from langgraph.runtime import Runtime
 from typing_extensions import TypedDict
 
 from .domain import SPECIALTIES
-from .gateway import Missing, Unavailable, UncertainWrite
+from .gateway import Deadline, Missing, Unavailable, UncertainWrite
 from .ports import ModelProvider
 from .routing import BENEFITS, classify
 
@@ -74,8 +74,8 @@ async def benefits(gateway, intent, message, today):
     if "/" in value and intent.subject in {"deductible", "oop"}:
         value = value.split("/")[int(family)].strip()
     accumulators = enrollment["accumulators"]
-    remaining = bool(re.search(r"left|still|remain|before .*met|how far|how much more|need to spend", message))
-    if intent.subject == "pt_limit" or (remaining and intent.subject in {"deductible", "oop"}):
+    remaining = bool(re.search(r"\bleft\b|\bstill\b|remain|before .*met|how far|how much more|need to spend", message))
+    if remaining and intent.subject in {"pt_limit", "deductible", "oop"}:
         if when.year != accumulators.get("plan_year") or (family and remaining) or out_of_network:
             raise Unavailable
         digits = re.search(r"\d[\d,.]*", value)
@@ -129,7 +129,7 @@ async def claims(gateway, intent, text, today):
         if not status:
             raise Unavailable
         count = 0
-        async for page in gateway.claim_pages():
+        async for page in gateway.claim_pages(allow_prefix=False):
             count += sum(c["status"] == status and c["service_date"][:4] == year for c in page)
         return outcome("answer", f"{count} {status.lower()} claims in {year}.")
     claim = await get_claim(gateway, text)
@@ -178,7 +178,10 @@ def draft(message, session):
     description = re.sub(r"\b\d{3}[. -]?\d{2}[. -]?\d{4}\b", "[redacted]", message).strip()
     if not description or len(description) > 2000:
         return outcome("clarify", "Provide a grievance description of at most 2,000 characters.")
-    fields = {"category": category, "description": description, "expedite_requested": False}
+    expedited = bool(re.search(r"\b(?:expedite|expedited)\b", message, re.I)) and not bool(
+        re.search(r"\b(?:do not|don't|never|no)\s+(?:expedite|expedited)\b", message, re.I)
+    )
+    fields = {"category": category, "description": description, "expedite_requested": expedited}
     pending = {"id": uuid4().hex, "expires": time() + 900, "fields": fields}
     session["draft"] = pending
     return outcome("confirm", "Read this draft back to the member and confirm or cancel.",
@@ -230,6 +233,8 @@ def create_graph(settings, model_client, *, model_provider: ModelProvider | None
                 raise Unavailable
         except Missing:
             result = outcome("not_in_tenant", "The requested record could not be found in this session.")
+        except Deadline:
+            result = outcome("cannot_answer", "The request deadline expired before the required records were available.")
         except (Unavailable, ValueError, KeyError, TypeError, AttributeError, ArithmeticError):
             result = outcome("cannot_answer", "The information is unavailable from the authorized sources.")
         return {"result": result}
@@ -262,7 +267,14 @@ async def apply_action(action, draft_id, session, gateway, persist):
               "body": json.dumps(pending["fields"], sort_keys=True, separators=(",", ":")),
               "category": pending["fields"]["category"]}
     session["intent"] = intent
-    persist()
+    if not persist():
+        session["draft"] = pending
+        if prior:
+            session["intent"] = prior
+        else:
+            del session["intent"]
+        gateway.budget.events.append({"operation": action, "decision": "member_reconciliation_required"})
+        return outcome("pending_reconciliation", "A confirmed filing for this member is pending reconciliation.")
     try:
         receipt = await gateway.file(intent)
     except (Missing, Unavailable, UncertainWrite, KeyError, TypeError):

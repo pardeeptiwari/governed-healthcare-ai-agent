@@ -9,6 +9,24 @@ from member_services.ports import FixedClock, ModelCompletion
 from member_services.store import State
 
 
+def test_unresolved_filing_survives_repository_restart_and_session_overwrite(tmp_path):
+    database = tmp_path / "state.sqlite"
+    scope = {"tenant": "plan_a", "member": "M1234"}
+    state = State(database)
+    state.create("original", scope)
+    state.create("new", scope)
+    approved = {**scope, "intent": {"key": "first", "body": '{"description":"approved"}', "state": "sending"}}
+    assert state.begin_filing("original", approved)
+
+    reopened = State(database)
+    reopened.save("original", scope)
+    assert not reopened.begin_filing("new", {**scope, "intent": {"key": "second", "body": "{}"}})
+    with reopened.transaction() as connection:
+        assert connection.execute("SELECT operation_key, body FROM active_filings").fetchone() == (
+            "first", approved["intent"]["body"],
+        )
+
+
 def test_environment_paths_and_secret_repr(monkeypatch, tmp_path):
     for name, value in {
         "ASSIGNMENT_PACK": str(tmp_path),
@@ -52,7 +70,7 @@ def test_app_injects_clock_model_and_state(tmp_path):
             return ModelCompletion('{"operation":"benefit","subject":"specialist"}')
 
     settings = Settings(tmp_path, "http://mock", tmp_path / "unused.sqlite",
-                        {"demo": {"rep": "demo", "tenant": "plan_a"}},
+                        {"demo": {"rep": "demo", "tenant": "plan_a", "member_ids": ["M1234"]}},
                         {"plan_a": "mock-token"}, "mock-key")
     state = State(tmp_path / "injected.sqlite")
     app = build_app(settings, clock=FixedClock(date(2027, 2, 1)), model_provider=Provider(),

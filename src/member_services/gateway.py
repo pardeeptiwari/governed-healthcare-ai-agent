@@ -19,6 +19,10 @@ class Missing(Exception):
     pass
 
 
+class Deadline(Unavailable):
+    pass
+
+
 class UncertainWrite(Exception):
     pass
 
@@ -35,7 +39,10 @@ class Budget:
         return max(0.0, self.deadline - monotonic())
 
     def begin(self, operation):
-        if self.steps <= 0 or self.remaining() <= 0:
+        if self.remaining() <= 0:
+            self.events.append({"operation": operation, "decision": "budget_denied"})
+            raise Deadline
+        if self.steps <= 0:
             self.events.append({"operation": operation, "decision": "budget_denied"})
             raise Unavailable
         self.steps -= 1
@@ -47,11 +54,12 @@ class Budget:
 
 
 class Gateway:
-    def __init__(self, settings, client, kb, tenant, member, budget, claim_cache):
+    def __init__(self, settings, client, kb, tenant, member, budget, claim_cache, *, filing_store=None):
         self.settings, self.client, self.kb = settings, client, kb
         self.tenant, self.member, self.budget = tenant, member, budget
         self.member_path = f"/tenants/{tenant}/members/{member}"
         self.claim_cache = claim_cache
+        self.filing_store = filing_store
 
     async def _request(self, operation, path, *, params=None, directory=False, intent=None):
         headers = (
@@ -63,6 +71,7 @@ class Gateway:
         for attempt in range(2):
             start = self.budget.begin(operation)
             decision = "unavailable"
+            attempt_id = self.filing_store.start_attempt(intent["key"]) if intent and self.filing_store else None
             try:
                 async with asyncio.timeout(self.budget.remaining()):
                     response = await self.client.request(
@@ -91,12 +100,18 @@ class Gateway:
                 if not isinstance(payload, dict):
                     raise ValueError
                 return payload
-            except (httpx.HTTPError, TimeoutError, ValueError) as exc:
+            except (TimeoutError, httpx.TimeoutException) as exc:
+                if intent:
+                    raise UncertainWrite from exc
+                raise Deadline from exc
+            except (httpx.HTTPError, ValueError) as exc:
                 if intent:
                     raise UncertainWrite from exc
                 raise Unavailable from exc
             finally:
-                self.budget.record(operation, start, decision)
+                self.budget.record(operation, start, decision, downstream=True, retry=attempt > 0)
+                if attempt_id is not None:
+                    self.filing_store.finish_attempt(attempt_id, decision)
         raise Unavailable
 
     async def benefits(self):
@@ -183,22 +198,27 @@ class Gateway:
             raise Missing
         return self.project_claim(data)
 
-    async def claim_pages(self):
+    async def claim_pages(self, *, allow_prefix: bool = True):
         key = self.tenant, self.member
         start = self.budget.begin("claims_cache")
         cached = self.claim_cache.get(key)
-        if cached and cached[0] > monotonic():
-            self.claim_cache.move_to_end(key)
-            self.budget.record("claims_cache", start, "hit")
-            for page in cached[1]:
-                yield page
-            return
-        self.claim_cache.pop(key, None)
-        self.budget.record("claims_cache", start, "miss")
         path = self.member_path + "/claims"
         cursor = 0
         pages = []
-        while True:
+        expires = monotonic() + 15
+        if cached and cached[0] > monotonic() and (allow_prefix or cached[2] is None):
+            expires, previous_pages, cursor = cached
+            pages = list(previous_pages)
+            self.claim_cache.move_to_end(key)
+            self.budget.record("claims_cache", start, "hit" if cursor is None else "prefix_hit")
+            for page in pages:
+                yield page
+            if cursor is None:
+                return
+        else:
+            self.claim_cache.pop(key, None)
+            self.budget.record("claims_cache", start, "miss")
+        while cursor is not None:
             page = await self._request("claim_page", path, params={"cursor": cursor, "page_size": 5})
             projected = []
             if not isinstance(page["data"], list) or len(page["data"]) > 5:
@@ -207,26 +227,24 @@ class Gateway:
                 self.check_member(claim)
                 projected.append(self.project_claim(claim))
             pages.append(projected)
-            if page["next"] is None:
-                self.claim_cache[key] = monotonic() + 60, pages
-                self.claim_cache.move_to_end(key)
-                if len(self.claim_cache) > 128:
-                    self.claim_cache.popitem(last=False)
-                yield projected
-                return
             next_cursor = cursor + len(projected)
             continuation = page["next"]
-            if not isinstance(continuation, str) or continuation.partition("?")[0] != path:
-                self.budget.events.append({"operation": "pagination", "decision": "deny"})
-                raise Unavailable
-            link = urlsplit(continuation)
-            if (len(projected) != 5 or link.fragment
-                    or sorted(parse_qsl(link.query, keep_blank_values=True))
-                    != [("cursor", str(next_cursor)), ("page_size", "5")]):
-                self.budget.events.append({"operation": "pagination", "decision": "deny"})
-                raise Unavailable
+            if continuation is not None:
+                if not isinstance(continuation, str) or continuation.partition("?")[0] != path:
+                    self.budget.events.append({"operation": "pagination", "decision": "deny"})
+                    raise Unavailable
+                link = urlsplit(continuation)
+                if (len(projected) != 5 or link.fragment
+                        or sorted(parse_qsl(link.query, keep_blank_values=True))
+                        != [("cursor", str(next_cursor)), ("page_size", "5")]):
+                    self.budget.events.append({"operation": "pagination", "decision": "deny"})
+                    raise Unavailable
+            cursor = next_cursor if continuation is not None else None
+            self.claim_cache[key] = expires, tuple(pages), cursor
+            self.claim_cache.move_to_end(key)
+            if len(self.claim_cache) > 128:
+                self.claim_cache.popitem(last=False)
             yield projected
-            cursor = next_cursor
 
     async def grievances(self):
         response = await self._request("grievances", self.member_path + "/grievances")

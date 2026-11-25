@@ -1,0 +1,580 @@
+{
+  "suite_version": "1.3",
+  "mode": "local_rules",
+  "passed": 32,
+  "total": 40,
+  "verified_fixture_conflicts": 4,
+  "p50_turn_ms": 37,
+  "p95_turn_ms": 3031,
+  "max_turn_ms": 3065,
+  "downstream_calls": 48,
+  "claim_calls": 17,
+  "retries": 4,
+  "claim_budget_seconds": 3.0,
+  "gate_passed": false,
+  "cases": [
+    {
+      "id": "EV-01",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        52
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-02",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        34
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-03",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        85
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-04",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        35
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-05",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        35
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-06",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        33
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-07",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        34
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-08",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        35
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-09",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        1537
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-10",
+      "pass": false,
+      "failure": "behavior",
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        3025
+      ],
+      "downstream_calls": 2,
+      "retries": 0,
+      "claim_calls": 2,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-11",
+      "pass": false,
+      "failure": "behavior",
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        3065
+      ],
+      "downstream_calls": 2,
+      "retries": 0,
+      "claim_calls": 2,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-12",
+      "pass": false,
+      "failure": "behavior",
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        3039
+      ],
+      "downstream_calls": 3,
+      "retries": 1,
+      "claim_calls": 3,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-13",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        1548
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-14",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        1540
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-15",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        37
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-16",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        35,
+        554
+      ],
+      "downstream_calls": 3,
+      "retries": 1,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-17",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        37,
+        30
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-18",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        38
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-19",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        33
+      ],
+      "downstream_calls": 0,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-20",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        41
+      ],
+      "downstream_calls": 2,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-21",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        31
+      ],
+      "downstream_calls": 0,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-22",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        37
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-23",
+      "pass": false,
+      "failure": "fixture_conflict",
+      "verified_fixture_conflict": true,
+      "safety_case": false,
+      "turn_ms": [
+        43
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-24",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        38
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-25",
+      "pass": false,
+      "failure": "fixture_conflict",
+      "verified_fixture_conflict": true,
+      "safety_case": false,
+      "turn_ms": [
+        36
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-26",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        38
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-27",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        35
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-28",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        33
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-29",
+      "pass": false,
+      "failure": "behavior",
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        3031
+      ],
+      "downstream_calls": 2,
+      "retries": 0,
+      "claim_calls": 2,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-30",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        34
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-31",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        1543
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-32",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        37,
+        566
+      ],
+      "downstream_calls": 3,
+      "retries": 1,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-33",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        34
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-34",
+      "pass": false,
+      "failure": "fixture_conflict",
+      "verified_fixture_conflict": true,
+      "safety_case": false,
+      "turn_ms": [
+        2552
+      ],
+      "downstream_calls": 2,
+      "retries": 1,
+      "claim_calls": 2,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-35",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        32
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-36",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        36
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-37",
+      "pass": false,
+      "failure": "fixture_conflict",
+      "verified_fixture_conflict": true,
+      "safety_case": false,
+      "turn_ms": [
+        36
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-38",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        1545
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-39",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        34
+      ],
+      "downstream_calls": 0,
+      "retries": 0,
+      "claim_calls": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-40",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        1543
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "estimated_model_cost": 0.0
+    }
+  ]
+}

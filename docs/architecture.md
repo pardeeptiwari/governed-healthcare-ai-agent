@@ -12,9 +12,13 @@ flowchart LR
     Policy --> Directory[Provider directory]
     APIs -. production claim updates .-> Projection[Freshness-bounded claims read model]
     Projection -. authorized reads .-> Policy
-    Graph --> Approval[Match explicit rep approval to draft]
+    API --> Approval[Match explicit rep approval to draft]
     Approval --> State[Tenant state and durable write intent]
     State -. approved intent only .-> Policy
-    Policy --> Audit[Tenant audit archive]
+    State --> Recovery[Bounded filing recovery]
+    Recovery -. verified durable replay contract .-> Policy
+    Recovery --> Manual[Manual review when outcome remains unknown]
+    Policy --> Audit[Local audit events]
     Graph --> Audit
+    Audit -. production retention .-> Archive[Tenant audit archive]
 ```

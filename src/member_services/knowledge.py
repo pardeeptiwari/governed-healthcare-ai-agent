@@ -82,6 +82,12 @@ class Knowledge:
         ]
         if not eligible:
             return None
+        exact = [row for row in eligible if words(row[3][0]) == query_words]
+        if exact:
+            best = max(exact, key=lambda row: (row[0] == product, row[1]))
+            if any(row[:2] == best[:2] and row[3] != best[3] for row in exact):
+                return None
+            return best[2], best[3]
         corpus = [words(row[3][0]) for row in eligible]
         scores = BM25Okapi(corpus).get_scores(query_words)
 
@@ -89,7 +95,7 @@ class Knowledge:
             product_code, effective, _, _ = eligible[index]
             terms = corpus[index]
             return (
-                terms == query_words, len(set(terms) & query_terms), float(scores[index]),
+                len(set(terms) & query_terms), float(scores[index]),
                 product_code == product, effective,
             )
 

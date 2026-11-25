@@ -1,0 +1,36 @@
+name: Docker smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - pyproject.toml
+      - 'src/**'
+      - .github/scripts/smoke-image.sh
+      - .github/workflows/docker-smoke.yml
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - pyproject.toml
+      - 'src/**'
+      - .github/scripts/smoke-image.sh
+      - .github/workflows/docker-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build image
+        run: docker build --tag member-services:ci .
+      - name: Run mandatory container checks
+        run: bash .github/scripts/smoke-image.sh

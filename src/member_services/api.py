@@ -2,10 +2,11 @@ import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import re
 from collections import OrderedDict
-from contextlib import asynccontextmanager
-from datetime import date
+from contextlib import asynccontextmanager, suppress
+from datetime import UTC, date, datetime
 from time import monotonic
 from uuid import uuid4
 
@@ -21,8 +22,11 @@ from .gateway import Budget, Gateway
 from .knowledge import Knowledge
 from .logging_policy import suppress_transport_logs
 from .ports import EvaluationClock, FixedClock, ModelProvider, StateRepository
+from .recovery import recover_filings
 from .store import State
 from .workflow import apply_action, create_graph, outcome
+
+audit_logger = logging.getLogger("member_services.access")
 
 
 def create_app() -> FastAPI:
@@ -59,7 +63,14 @@ def build_app(
             app.state.clock = app.state.evaluation_clock.today()
             app.state.upstream = upstream
             app.state.graph = create_graph(settings, model, model_provider=model_provider)
-            yield
+            state.recover_interrupted()
+            recovery = asyncio.create_task(recover_filings(settings, state, upstream))
+            try:
+                yield
+            finally:
+                recovery.cancel()
+                with suppress(asyncio.CancelledError):
+                    await recovery
 
     app = FastAPI(lifespan=lifespan)
     app.state.store = state
@@ -67,6 +78,7 @@ def build_app(
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(_request, _error):
+        audit_logger.info("decision=invalid_request")
         return JSONResponse(status_code=422, content={"detail": "Invalid request."})
 
     def authenticate(authorization):
@@ -76,7 +88,24 @@ def build_app(
                 if hmac.compare_digest(supplied.encode(), credential.encode()):
                     if principal["tenant"] in {"plan_a", "plan_b"}:
                         return principal
+        audit_logger.info("decision=authentication_denied")
         raise HTTPException(401, "Authentication required.")
+
+    def can_access(principal, member):
+        allowed = principal.get("member_ids")
+        return isinstance(allowed, list) and member in allowed
+
+    @asynccontextmanager
+    async def acquire_turn_lock(identifier, timeout):
+        lock = locks[int(identifier[:8], 16) % len(locks)]
+        try:
+            await asyncio.wait_for(lock.acquire(), timeout)
+        except TimeoutError as exc:
+            raise HTTPException(503, "Conversation is busy. Retry the same turn.") from exc
+        try:
+            yield
+        finally:
+            lock.release()
 
     @app.get("/health")
     async def health() -> Health:
@@ -85,8 +114,11 @@ def build_app(
     @app.post("/v1/conversations", status_code=201)
     async def start(body: Start, authorization: str | None = Header(default=None)):
         principal = authenticate(authorization)
+        if not can_access(principal, body.member_id):
+            audit_logger.info("operation=conversation_start decision=member_denied")
+            raise HTTPException(404, "Member unavailable.")
         identifier = uuid4().hex
-        state.create(identifier, {**principal, "member": body.member_id,
+        state.create(identifier, {"tenant": principal["tenant"], "rep": principal["rep"], "member": body.member_id,
                                   "steps": settings.max_actions,
                                   "seconds": settings.processing_seconds, "cost": settings.model_budget})
         return {"conversation_id": identifier}
@@ -100,27 +132,34 @@ def build_app(
         if is_message != bool(body.message) or is_message == bool(body.draft_id):
             raise HTTPException(422, "Provide a message or a draft action.")
         start_time = monotonic()
-        async with locks[int(identifier[:8], 16) % len(locks)]:
+        time_limit = settings.turn_seconds
+        if is_message and re.search(
+            r"\b(claims?|appeal|c\d{6,}|owe|owed|billed)\b", body.message, re.I
+        ):
+            time_limit = settings.claim_seconds
+        async with acquire_turn_lock(identifier, time_limit):
             session = state.load(identifier)
             if not session or any(session.get(key) != principal[key] for key in ("tenant", "rep")):
+                audit_logger.info("operation=turn decision=conversation_denied")
+                raise HTTPException(404, "Conversation unavailable.")
+            if not can_access(principal, session["member"]):
+                audit_logger.info("operation=turn decision=member_denied")
                 raise HTTPException(404, "Conversation unavailable.")
             digest = hmac.digest(authorization.encode(), body.model_dump_json().encode(), hashlib.sha256).hex()
             prior = state.reserve(identifier, body.turn_id, digest)
             if prior:
                 if prior[0] != digest:
+                    audit_logger.info("operation=turn decision=replay_conflict")
                     raise HTTPException(409, "Turn identifier already used.")
                 if prior[1]:
+                    audit_logger.info("operation=turn decision=replay_receipt")
                     return json.loads(prior[1])
+                audit_logger.info("operation=turn decision=replay_unresolved")
                 return outcome("pending_reconciliation", "This turn has an unresolved outcome.")
 
-            time_limit = settings.turn_seconds
-            if is_message and re.search(
-                r"\b(claims?|appeal|c\d{6,}|owe|owed|billed)\b", body.message, re.I
-            ):
-                time_limit = settings.claim_seconds
             budget = Budget(session["steps"], start_time + min(session["seconds"], time_limit), session["cost"])
             gateway = Gateway(settings, app.state.upstream, kb, session["tenant"], session["member"],
-                              budget, claim_cache)
+                              budget, claim_cache, filing_store=state)
             if budget.remaining() <= 0 or budget.steps <= 0:
                 budget.events.append({"operation": "turn", "decision": "budget_denied"})
                 result = outcome("cannot_answer", "The conversation budget was exhausted.")
@@ -132,12 +171,14 @@ def build_app(
                 result = graph_state["result"]
             else:
                 result = await apply_action(body.action, body.draft_id, session, gateway,
-                                            lambda: state.save(identifier, session))
+                                            lambda: state.begin_filing(identifier, session, body.turn_id))
             elapsed = monotonic() - start_time
             session["steps"] = budget.steps
             session["seconds"] = max(0, session["seconds"] - elapsed)
             session["cost"] = max(0, session["cost"] - budget.model_cost)
             state.finish(identifier, session, body.turn_id, result, {
+                "recorded_at": datetime.now(UTC).isoformat(),
+                "tenant": session["tenant"],
                 "outcome": result["outcome"], "elapsed_ms": round(elapsed * 1000),
                 "estimated_model_cost": round(budget.model_cost, 8), "events": budget.events,
             })
