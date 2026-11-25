@@ -71,3 +71,12 @@ Added Ruff and a Linux container smoke test to public CI. The test generates a s
 - Confirmed with DEBUG logging enabled that HTTPX request URLs are suppressed. A synthetic API test verified audit events exclude the raw request, sample identifiers, and credentials.
 - The full mock replay passed the regression gate with 36/40 raw passes and four verified fixture conflicts.
 - Docker and hosted Actions still require verification. No container engine or Linux subsystem was available locally, and no GitHub remote was configured. AI assisted with implementation and verification. M7 is pending review before committing.
+
+## 2026-11-25 · M8 architecture and submission documentation
+
+Clarified the README health check, Docker environment format, and baseline evidence. Updated the architecture diagram to show explicit draft approval and the durable intent before the gateway write. Documented the slice-to-production prerequisites and explained how the initial AI-assisted analysis missed three source conflicts.
+
+- Installed the package and test extras in a fresh Python 3.11 environment from a clean archive of the M7 commit. Ruff and all 30 tests passed. The README's mock and Uvicorn commands returned HTTP 200 on their health routes.
+- Ran the documented evaluator command from that snapshot. The gate passed with 36/40 raw passes and four verified fixture conflicts. Measured p95 was 3.015 seconds on this run. The committed baseline was retained for comparison and is identified separately in the README.
+- Verified relative documentation links and four ADRs. A headless Chrome preview confirmed each of the four design sections fit an A4 text area at 11 pt, including the final Azure mapping. NOTES fit one page and the separate Mermaid diagram rendered.
+- Docker, hosted Actions, and live model execution remain unverified. AI assisted with documentation and local verification. M8 remains pending owner review before committing.

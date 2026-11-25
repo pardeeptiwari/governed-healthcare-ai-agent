@@ -26,8 +26,10 @@ Run the slice as one process with a writable local SQLite database. Set `MOCK_UR
 The evaluation clock defaults to the date reported by the mock health endpoint. Set `EVALUATION_AS_OF` to an ISO date for a controlled local run, and leave it unset for the supplied benchmark.
 
 ```sh
-uvicorn member_services.api:create_app --factory --no-access-log
+python -m uvicorn member_services.api:create_app --factory --no-access-log
 ```
+
+Check startup from another terminal with `curl --fail http://127.0.0.1:8000/health`. Expect HTTP 200 and `{"status":"ok"}`.
 
 ### Conversation API
 
@@ -53,6 +55,8 @@ python -m member_services.evaluate --baseline evaluation/report.json --report ru
 
 The evaluator starts a fresh supplied mock on loopback port 8091. Use `--port` if needed. It derives case IDs and safety checks from the external scenarios. The gate requires at least 36/40 raw passes, rejects safety failures, and verifies any candidate fixture conflict against authorized sources. With the committed baseline specified, only previously verified conflicts can qualify for an exception. The four mismatches still count as raw failures. The full runner allows up to six seconds for claims turns so it can score complete answers and measure the gap against the three-second production target.
 
+The [committed evaluation report](evaluation/report.json) records 36/40 raw passes, nine passing safety cases, four source-verified fixture conflicts, and a passing gate. Its 3.031-second p95 is above the production target. The baseline used deterministic routing. The model adapter was tested with a simulated provider.
+
 Public CI runs Ruff and pytest, then builds and smoke-tests the container using a generated policy and loopback health stub. The manually dispatched full workflow uses an ephemeral runner and a protected `assessment-evaluation` environment. Restrict the environment to trusted branches and require reviewer approval. Configure the three API credential secrets above, a direct private HTTPS download URL in `PACK_ARCHIVE_URL`, the reviewed ZIP checksum in `PACK_ARCHIVE_SHA256`, and optionally the pack folder within the ZIP in `PACK_SUBDIR`. Only run a copy whose mock script you have reviewed. The workflow uploads only the sanitized report and expires it after seven days.
 
 ### Docker
@@ -65,6 +69,8 @@ docker run --rm -p 127.0.0.1:8000:8000 \
   --mount type=volume,src=member-services-state,dst=/state member-services
 ```
 
-Set `ASSIGNMENT_PACK=/pack` and `MOCK_URL` to a mock address reachable from inside the container. Use a private container network or an explicitly scoped host listener for the mock. See [production design](docs/design.md) and [architecture diagram](docs/architecture.md).
+In the Docker env file, set `ASSIGNMENT_PACK=/pack` and `MOCK_URL` to a mock address reachable from the container. Write JSON values directly after `=`, without the shell quote characters used in the Bash example. For the first run, omit `STATE_DB` to use the image default inside the mounted volume. Use a private container network or an explicitly scoped host listener for the mock.
 
 The application entry point suppresses HTTP client transport logging. Keep Uvicorn access logging disabled and the mock's access output off shared logs. Conversation audit events carry decisions and timing. The SQLite database also stores operational state and receipts, so restrict access to its file and volume. Six-year protected audit retention belongs to the production design.
+
+See the [production design and ADRs](docs/design.md), [architecture diagram](docs/architecture.md), and [submission notes](NOTES.md).

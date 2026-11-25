@@ -6,13 +6,15 @@ flowchart LR
     Identity --> API[Conversation API]
     API --> Graph[Bounded LangGraph workflow]
     Graph --> Model[Optional intent classifier]
-    Graph --> Policy[Tool gateway]
+    Graph --> Policy[Tool gateway and payload validation]
     Policy --> KB[Tenant-scoped policy index]
     Policy --> APIs[Scoped member, claims, and grievance APIs]
     Policy --> Directory[Provider directory]
     APIs -. production claim updates .-> Projection[Freshness-bounded claims read model]
     Projection -. authorized reads .-> Policy
-    Graph --> State[Tenant state and confirmed write intents]
+    Graph --> Approval[Match explicit rep approval to draft]
+    Approval --> State[Tenant state and durable write intent]
+    State -. approved intent only .-> Policy
     Policy --> Audit[Tenant audit archive]
     Graph --> Audit
 ```

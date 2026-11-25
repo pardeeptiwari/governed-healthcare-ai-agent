@@ -21,6 +21,8 @@ At 20,000 conversations/day the spending ceiling is $600/day. Measure input/outp
 | Duplicate or lost filing after ambiguous acknowledgment | Persist intent and immutable payload before dispatch. Use the same key during bounded retry. Require production downstream lookup and durable deduplication. Resume unresolved intents only once deduplication is verified. |
 | Malicious continuations, upstream outages, and cost abuse | Fixed destinations and credentials, disabled redirects, validated pagination, request budgets, timeout handling, and tenant-level quotas. Alert on degraded answers and drift in usage. |
 
+The slice uses local rep credentials, SQLite, and the mock system of record. Production rollout requires corporate identity, rep-to-member authorization, encrypted shared state, and a durable downstream idempotency contract with operation lookup. See the [evaluation report](../evaluation/report.json) for measured slice results.
+
 Roll out through shadow reads, then a rep pilot with supervised writes. Review audit completeness, data access, accuracy, latency, and pending write age before expanding. Roll back by disabling new writes and reconciling in-flight intents before changing the service revision.
 
 ## Page 3 · Architecture decision records
