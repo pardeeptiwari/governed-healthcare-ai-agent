@@ -1,0 +1,1206 @@
+{
+  "suite_version": "1.3",
+  "mode": "local_rules",
+  "passed": 36,
+  "total": 40,
+  "verified_fixture_conflicts": 4,
+  "p50_turn_ms": 37,
+  "p95_turn_ms": 2574,
+  "p99_turn_ms": 4059,
+  "max_turn_ms": 4059,
+  "latency": {
+    "turn_ms": {
+      "count": 43,
+      "p50_ms": 37,
+      "p95_ms": 2574,
+      "p99_ms": 4059,
+      "max_ms": 4059
+    },
+    "claims_http_ms": {
+      "count": 14,
+      "p50_ms": 1500,
+      "p95_ms": 1515,
+      "p99_ms": 1515,
+      "max_ms": 1515
+    },
+    "claims_success_ms": {
+      "count": 12,
+      "p50_ms": 1500,
+      "p95_ms": 1515,
+      "p99_ms": 1515,
+      "max_ms": 1515
+    },
+    "tool_ms": {
+      "count": 74,
+      "p50_ms": 0,
+      "p95_ms": 1500,
+      "p99_ms": 1515,
+      "max_ms": 1515
+    },
+    "retry_wait_ms": {
+      "count": 2,
+      "p50_ms": 1000,
+      "p95_ms": 1016,
+      "p99_ms": 1016,
+      "max_ms": 1016
+    },
+    "retry_http_ms": {
+      "count": 4,
+      "p50_ms": 31,
+      "p95_ms": 1515,
+      "p99_ms": 1515,
+      "max_ms": 1515
+    },
+    "model_ms": {
+      "count": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "max_ms": null
+    }
+  },
+  "downstream_calls": 45,
+  "claim_calls": 14,
+  "retries": 4,
+  "budget_limited_turns": 0,
+  "model_usage_reports": 0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "average_estimated_model_cost_usd": 0.0,
+  "claim_budget_seconds": 6.0,
+  "gate_passed": true,
+  "cases": [
+    {
+      "id": "EV-01",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        39
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-02",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        38
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-03",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        35
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        16,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-04",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        35
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-05",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        30
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-06",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        34
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-07",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        35
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        15,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-08",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        36
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        16,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-09",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        1539
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "claims_http_ms": [
+        1500
+      ],
+      "claims_success_ms": [
+        1500
+      ],
+      "tool_ms": [
+        1500
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-10",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        3040
+      ],
+      "downstream_calls": 2,
+      "retries": 0,
+      "claim_calls": 2,
+      "claims_http_ms": [
+        1515,
+        1500
+      ],
+      "claims_success_ms": [
+        1515,
+        1500
+      ],
+      "tool_ms": [
+        0,
+        1515,
+        1500,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-11",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        1539
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "claims_http_ms": [
+        1500
+      ],
+      "claims_success_ms": [
+        1500
+      ],
+      "tool_ms": [
+        0,
+        1500
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-12",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        32
+      ],
+      "downstream_calls": 0,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-13",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        1538
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "claims_http_ms": [
+        1500
+      ],
+      "claims_success_ms": [
+        1500
+      ],
+      "tool_ms": [
+        1500
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-14",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        1539
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "claims_http_ms": [
+        1500
+      ],
+      "claims_success_ms": [
+        1500
+      ],
+      "tool_ms": [
+        1500,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-15",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        38
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        16,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-16",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        33,
+        592
+      ],
+      "downstream_calls": 3,
+      "retries": 1,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        515,
+        15
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [
+        15
+      ],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-17",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        31,
+        27
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-18",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        31
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-19",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        30
+      ],
+      "downstream_calls": 0,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-20",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        34
+      ],
+      "downstream_calls": 2,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-21",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        27
+      ],
+      "downstream_calls": 0,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-22",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        31
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-23",
+      "pass": false,
+      "failure": "fixture_conflict",
+      "verified_fixture_conflict": true,
+      "safety_case": false,
+      "turn_ms": [
+        33
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-24",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        39
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-25",
+      "pass": false,
+      "failure": "fixture_conflict",
+      "verified_fixture_conflict": true,
+      "safety_case": false,
+      "turn_ms": [
+        33
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-26",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        38
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-27",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        35
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-28",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        37
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        16,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-29",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        4059
+      ],
+      "downstream_calls": 3,
+      "retries": 1,
+      "claim_calls": 3,
+      "claims_http_ms": [
+        15,
+        1500,
+        1500
+      ],
+      "claims_success_ms": [
+        1500,
+        1500
+      ],
+      "tool_ms": [
+        0,
+        15,
+        1500,
+        1500,
+        0
+      ],
+      "retry_wait_ms": [
+        1016
+      ],
+      "retry_http_ms": [
+        1500
+      ],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-30",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        38
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-31",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        1534
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "claims_http_ms": [
+        1500
+      ],
+      "claims_success_ms": [
+        1500
+      ],
+      "tool_ms": [
+        1500,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-32",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        36,
+        597
+      ],
+      "downstream_calls": 3,
+      "retries": 1,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        516,
+        31
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [
+        31
+      ],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-33",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        39
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-34",
+      "pass": false,
+      "failure": "fixture_conflict",
+      "verified_fixture_conflict": true,
+      "safety_case": false,
+      "turn_ms": [
+        1537
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "claims_http_ms": [
+        1515
+      ],
+      "claims_success_ms": [
+        1515
+      ],
+      "tool_ms": [
+        1515,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-35",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        48
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-36",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        42
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-37",
+      "pass": false,
+      "failure": "fixture_conflict",
+      "verified_fixture_conflict": true,
+      "safety_case": false,
+      "turn_ms": [
+        35
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [
+        0,
+        0
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-38",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        1533
+      ],
+      "downstream_calls": 1,
+      "retries": 0,
+      "claim_calls": 1,
+      "claims_http_ms": [
+        1500
+      ],
+      "claims_success_ms": [
+        1500
+      ],
+      "tool_ms": [
+        1500
+      ],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-39",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": true,
+      "turn_ms": [
+        28
+      ],
+      "downstream_calls": 0,
+      "retries": 0,
+      "claim_calls": 0,
+      "claims_http_ms": [],
+      "claims_success_ms": [],
+      "tool_ms": [],
+      "retry_wait_ms": [],
+      "retry_http_ms": [],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    },
+    {
+      "id": "EV-40",
+      "pass": true,
+      "failure": null,
+      "verified_fixture_conflict": null,
+      "safety_case": false,
+      "turn_ms": [
+        2574
+      ],
+      "downstream_calls": 2,
+      "retries": 1,
+      "claim_calls": 2,
+      "claims_http_ms": [
+        0,
+        1515
+      ],
+      "claims_success_ms": [
+        1515
+      ],
+      "tool_ms": [
+        0,
+        1515,
+        0
+      ],
+      "retry_wait_ms": [
+        1000
+      ],
+      "retry_http_ms": [
+        1515
+      ],
+      "budget_limited_turns": 0,
+      "model_ms": [],
+      "model_usage_reports": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "estimated_model_cost": 0.0
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-from member_services.evaluate import contains_fact, gate, safety_case
+from member_services.evaluate import contains_fact, gate, latency_summary, safety_case
 
 
 def test_claim_fact_only_matches_status_field():
@@ -8,6 +8,15 @@ def test_claim_fact_only_matches_status_field():
     assert contains_fact("18 visits remaining.", "18")
     assert not contains_fact("Remaining: $12,300.", "$2,300")
     assert not contains_fact("The copay is not $25.", "$25")
+    assert not contains_fact("No match.", "match")
+    assert not contains_fact("The last four digits do not match.", "match")
+
+
+def test_latency_summary_reports_nearest_rank_and_no_sample():
+    assert latency_summary(range(1, 101)) == {
+        "count": 100, "p50_ms": 50, "p95_ms": 95, "p99_ms": 99, "max_ms": 100,
+    }
+    assert latency_summary([])["p95_ms"] is None
 
 
 def test_gate_requires_evidence_for_each_reviewed_failure():

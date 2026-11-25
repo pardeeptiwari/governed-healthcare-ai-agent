@@ -129,4 +129,127 @@ For manual review, an authorized operator should inspect the protected ledger an
 
 The dedicated `.github/workflows/docker-smoke.yml` checks out the candidate and builds it on `ubuntu-latest`. The smoke script starts the image with its default entry point and a separate synthetic fixture service on an isolated bridge network. Required checks cover readiness and health, non-root execution, writable SQLite state, member authorization, a benefits response grounded in the fixture, and SSN refusal. On failure the script prints both container logs, then removes the containers and network and preserves the failed exit status. The workflow needs no assessment pack or repository secrets.
 
-**Status: NOT VERIFIED.** Static workflow and shell checks do not establish that the image ran. Record a successful Actions run against the reviewed commit before marking Docker verification passed. Docker verification is independent of the default evaluation gate, which remains failed at 32/40.
+**Status: VERIFIED for `f44a16a249fee1987159f565f62617c7edcd7780`.** The private repository's Ubuntu runner completed the image build and all mandatory smoke checks. Docker verification is independent of the default evaluation gate, which remains failed at 32/40. [Docker smoke run 45659469860](https://github.com/pardeeptiwari/governed-healthcare-ai-agent/actions/runs/45659469860)
+
+## M13 performance and production readiness assessment
+
+### Evaluation and failure attribution
+
+Both runs replayed all 40 original conversations in order against a fresh supplied mock and SQLite database. No case expectation, gate threshold, or exception allowlist changed. Both runs passed all nine safety cases. The default profile remains 32/40 and fails the gate. The six-second diagnostic remains 36/40 and passes with only the four original fixture conflicts. [Default report](evaluation/m13-default.json) · [Diagnostic report](evaluation/m13-diagnostic.json)
+
+| Failed cases | Default / diagnostic | Root cause and disposition |
+|---|---|---|
+| EV-10, EV-11, EV-29 | Behavior failure / pass | Date/Service claim questions have no direct claim ID. Serial page work consumes the three-second end-to-end budget at the mock's 1.5-second per accepted request. The cache and bounded degradation already apply. Parallel offset guessing would bypass scoped continuation and risk incomplete results. A faster scoped query or authorized projection is required. |
+| EV-12 | Behavior failure / pass | Complete count required traversal. A 429 added a measured 1,016 ms wait and the retry timed out. The application withheld an incomplete count. This requires a downstream aggregate or freshness-bounded projection for cold queries. |
+| EV-23 | Fixture conflict / fixture conflict | Requested policy relies on a wrong-tenant document. The authorized retrieval path excludes it. |
+| EV-25 | Fixture conflict / fixture conflict | Fixture amount conflicts with the applicable limit and same-year accumulator. The application retains the eligible calculation. |
+| EV-34 | Fixture conflict / fixture conflict | The fixture's paid status conflicts with the scoped denied claim returned by the mock. |
+| EV-37 | Fixture conflict / fixture conflict | The fixture expects a different product's generic prescription amount. |
+
+M13 corrected negated-match scoring and made gateway and classifier deadline failures explicit in the audit and benchmark. It also separated actual backoff from HTTP attempt time. These changes improve failure diagnosis and preserve the original success and exception rules. No remaining fixture conflict justifies changing a source-backed answer.
+
+### Measured performance and projected cost
+
+Timings are nearest-rank milliseconds. End-to-end spans TestClient turn dispatch through response, including application and loopback mock I/O. It excludes external client networking, setup and evaluator observer calls. Tool samples include individual HTTP attempts, policy lookups and cache work. Claims HTTP samples include attempts terminated by the request deadline. Successful claims samples are listed separately. A zero-millisecond tool value means rounded below one millisecond. Small samples limit percentile interpretation.
+
+| Measure | Default 3 s | Diagnostic 6 s |
+|---|---:|---:|
+| End-to-end p50 / p95 / p99, 43 turns | 56 / 3,031 / 3,039 ms | 37 / 2,574 / 4,059 ms |
+| Claims HTTP p50 / p95 / p99 | 1,500 / 1,532 / 1,532 ms, 17 attempts | 1,500 / 1,515 / 1,515 ms, 14 attempts |
+| Successful claims p50 / p95 / p99 | 1,500 / 1,532 / 1,532 ms, 11 responses | 1,500 / 1,515 / 1,515 ms, 12 responses |
+| Tool p50 / p95 / p99 | 0 / 1,516 / 1,532 ms, 75 samples | 0 / 1,500 / 1,515 ms, 74 samples |
+| Retry work | 4 retry attempts. HTTP p50/p95 31/1,500 ms. 2 backoffs, 2,031 ms total. | 4 retry attempts. HTTP p50/p95 31/1,515 ms. 2 backoffs, 2,016 ms total. |
+| Budget-limited turns | 4 of 43 | 0 of 43 |
+| LLM latency and token consumption | No LLM calls. Latency unavailable. 0 input and 0 output tokens. | No LLM calls. Latency unavailable. 0 input and 0 output tokens. |
+| Estimated model cost per conversation | USD 0.00 in deterministic mode | USD 0.00 in deterministic mode |
+
+A separate local synthetic burst submitted 250 simultaneous benefit turns across two tenant scopes, with an in-process HTTP stub, pre-opened sessions and local SQLite. It returned 119 correct answers. End-to-end p50/p95/p99 was 3,700/4,746/4,759 ms. This exposes a capacity gap in the tested slice. The probe does not isolate the cost of SQLite from scheduling or request contention and does not predict Cloud Run performance.
+
+At 20,000 conversations/day for a 30-day month, the calculated volume is 600,000 conversations. The USD 0.03 target sets a USD 18,000/month all-in ceiling. Carrying the measured deterministic mode to that volume gives a **USD 0/month model-only projection**. Total production cost remains unavailable. Calculate it as monthly model, runtime, database, storage, network, monitoring and contracted upstream costs divided by actual completed and attempted conversation volume as appropriate for the billing model. A planning assumption of USD 0.01 for all-in spend gives USD 6,000/month, with no production price validation attached.
+
+### Production readiness matrix
+
+| Requirement | Target | Actual evidence | Status | Remaining gap | Recommended action |
+|---|---|---|---|---|---|
+| Availability | 99.99% monthly | 4.32 minutes of allowable downtime per 30 days. Cloud Run regional non-GPU SLA is 99.95% outside Stockholm. [Cloud Run SLA](https://cloud.google.com/run/sla) | DESIGN ONLY | SLA and local smoke cannot establish workflow availability, dependency uptime or regional survival. | Confirm tolerable degraded operations, test zonal failover/restore, negotiate dependency SLOs and resolve the regional risk with the owner. |
+| Latency | p95 below 3 s including claims | Default p95 3,031 ms with four deadline failures. | UNMET | Cold serial pages and quota recovery exceed budget. | Ship a scoped query or authorized projection and run cold/warm throttled end-to-end tests. |
+| Representative scale | 250 concurrent reps | Local synthetic burst returned 119/250 correct at 4,746 ms p95. | UNMET | No async shared production state path or representative deployed load result. | Load-test tenant-partitioned Cloud Run and Cloud SQL with realistic arrival rates and both upstream mixes. |
+| Tenant isolation | Zero cross-tenant leakage | Targeted entitlement, gateway, policy, cache and scope tests passed. | PARTIALLY VERIFIED | No deployed IAM, network, data-plane and audit boundary tests. | Verify corporate entitlement source and independently exercise tenant-specific service accounts, DB roles, audit access and egress. |
+| Minimum PHI | Only necessary data to model and logs | Projection, refusal and log-redaction tests passed. Live provider unused. | PARTIALLY VERIFIED | Production model, log sinks, state access and retention have no evidence. | Test actual egress payloads, configured transports, selective retention and access revocation. |
+| Audit retention | Six years | Local metadata exists. Proposed Cloud Storage retention lock supports the mechanism. [Cloud Storage lifecycle controls](https://docs.cloud.google.com/storage/docs/control-data-lifecycles?hl=en) | DESIGN ONLY | No deployed archive, completeness check or access and retention evidence. | Provision a tenant archive and verify immutability, audit delivery, scoped retrieval and recovery before locking the retention policy. |
+| Approval and filing effects | Explicit approval and exactly-once business effect | Approval, cancellation, replay, lost-ack and recovery tests passed under documented conditions. | DOWNSTREAM DEPENDENCY | A restart of the supplied backend destroys deduplication state. | Contract durable operation lookup and deduplication across failover, then test the delivered business effect. |
+| Average cost | At most USD 0.03/conversation at 20,000/day | Deterministic model cost USD 0 locally. Calculated USD 18,000/month all-in ceiling. | DESIGN ONLY | No deployed consumption, live token profile or cloud bill. | Price the configured region from measured service, storage, egress and model usage. Track unit cost and budget alerts. |
+| Azure portability | Move tenant into separate Azure deployment | Docker image and adapter interfaces exist. The four-page design gives Azure mappings and a cutover plan. | DESIGN ONLY | No Azure provisioning, identity/model test, or migration rehearsal. | Validate zone and SKU availability and rehearse identity, data migration, single-writer cutover and rollback. |
+| Container packaging | Reproducible Docker build and smoke | Hosted build and mandatory checks passed for `f44a16a`. [Docker smoke run](https://github.com/pardeeptiwari/governed-healthcare-ai-agent/actions/runs/45659469860) | VERIFIED | This run predates the local M13 instrumentation. | Run the workflow again against any later approved commit. |
+
+### Documentation and readiness recommendations
+
+- **Documentation.** Chromium A4 layout checks fit the four design sections and one-page NOTES at 11 pt with 18 mm margins. The separate diagram names the proposed regional GCP workloads and services. Four ADRs capture tenancy, orchestration/retrieval, confirmed writes, and claims/availability trade-offs. README includes reproduction commands and distinguishes the profiles. NOTES discloses AI assistance, fixture conflicts and platform limits. Both M13 reports preserve sanitized actual results.
+- **Assignment submission.** Present the working slice, Docker evidence, failed default gate and known limitations for owner decision. Submission approval remains pending.
+- **Prototype functional readiness.** Suitable for synthetic demonstration under documented conditions. The default claims path remains incomplete, and recovery after downstream restart requires operator handling.
+- **Security readiness.** Suitable for private synthetic verification. Production PHI requires external identity and entitlement validation, deployed isolation and egress tests, protected state and auditable retention.
+- **Production deployment readiness.** Hold. Fix claims latency and concurrency, prove composite availability and cost, deploy and verify retention, and obtain the durable filing contract before handling real member data.
+
+## M15 final assignment submission validation
+
+**Decision: NO-GO for final submission now.** The default regression gate failed in an isolated replay. The latest local report and changes have no final commit or hosted checks, and the remote remains private. The assignment asks for a public repository and a final commit hash from before the deadline. The original receipt date and deadline were unavailable to this review.
+
+### Readiness evidence
+
+| Requirement | Evidence | Status | Remaining limitation |
+|---|---|---|---|
+| Working tenant/member vertical slice and multi-turn HTTP API | Started the supplied mock and Uvicorn from an isolated source snapshot with the existing Python 3.11 dependencies. Both health checks returned 200. An authorized start returned 201 and the first turn returned 200 with the expected outcome. | PASS | Local smoke covers one loopback path, not production deployment. |
+| Unit, integration and security tests | All 39 tests passed. The separate 32-case workflow, gateway, model, recovery and knowledge subset passed. Ruff passed. | PASS | Coverage supports the exercised boundaries. Production identities, storage and egress were not exercised. |
+| Tool gateway, isolation, PHI and budgets | Entitlement, ownership, scoped cache/KB, field minimization, directory egress, timeout and denial tests passed. | PARTIAL | Completed-turn trace and budget checks are local. Full audit lifecycle, hard provider spend and cross-worker isolation remain unverified. |
+| Plan retrieval and evidence | Product, year, effective date and tenant tests passed. The full suite ran against the external pack. | PASS | Retrieval is scoped to the supported policy tables and wording. |
+| Grievance confirmation and retry side effects | EV-16 and EV-32 passed with zero inserts before confirmation, exactly one categorized grievance after confirmation and stable replay. EV-17 cancelled without a write. EV-13 answered without a write. | PASS for tested mock contract | After downstream restart the supplied mock loses keys. Durable recovery requires an external contract. |
+| Per-step trace | Selected model, tool, gateway and filing attempt events are retained locally. Redaction tests passed. | PARTIAL | Complete tracing and durable six-year retention are not established. |
+| Scored original suite and default regression gate | All 40 executed. 32 passed, all nine safety cases passed, gate exited 1. p50/p95/p99 was 39/3,016/3,033 ms. [M15 run](evaluation/m15-default.json) | FAIL | EV-10/11/12/29 exceeded the claims budget. EV-23/25/34/37 were the four source-verified fixture conflicts. Conditions and threshold were unchanged. |
+| Model/provider configurability and development model disclosure | README states deterministic local routing, external pack configuration and the optional OpenAI-compatible adapter. Projection, budget, structured-output and timeout tests passed with simulated completions. | PARTIAL | MODEL_URL and MODEL_NAME were unset. No genuine provider call, paid token usage, or live model quality was verified. |
+| Latest committed sanitized report | Historical and M11.1 reports exist on remote main. M13 and fresh M15 reports are in the local candidate, with no messages, member fields or credentials. | PENDING | The original brief requires the latest report to be committed. Include the reviewed M15 report and its referenced M13 evidence in the approved final commit. |
+| README and external pack reproducibility | Inspected environment setup and used its mock, FastAPI factory and evaluator entry points with the separately supplied pack. The isolated copy imported its own application source. | PASS | Existing dependencies were reused for this run. M12 built and installed an earlier wheel from a fresh offline environment. Distinguish this from a new network dependency installation. |
+| NOTES and AI disclosure | One-page A4 layout fit. Describes decisions, assumptions, data conflicts, next work, and where AI helped and initially missed issues. Development log agrees on tested limitations. | PASS | The author must be able to explain and change the submitted implementation independently. |
+| Four-page design, diagram and ADRs | Four A4 sections fit at 11 pt and 18 mm margins. Separate GCP Mermaid diagram, one-page Azure mapping, and four ADRs with alternatives and consequences are present. | PASS | Design fit is tied to the checked print layout. GCP and Azure designs are unprovisioned. |
+| Threat model and production NFR response | Covers identity and tenant boundaries, hostile inputs, PHI/egress, writes, upstream failures, and build/operator access. M13 maps all requested production targets. | PASS for design deliverable | Live control verification, incident and failover exercises, independent security tests and audit evidence remain unresolved. |
+| Repository data handling and real history | Targeted candidate/history checks and ignore rules exclude original pack, exact supplied identifiers/credentials, selected secret signatures, databases, logs and M14 study files. Incremental history is preserved. | PASS for targeted checks | This is a local scan for known and high-confidence patterns, with no proof against every novel or transformed secret. Repeat after final staging. |
+| Hosted CI and Docker | GitHub API confirms private main at `f44a16a249fee1987159f565f62617c7edcd7780`. The regression CI and mandatory Docker checks passed at that SHA. [Regression CI](https://github.com/pardeeptiwari/governed-healthcare-ai-agent/actions/runs/45659469687) · [Docker smoke](https://github.com/pardeeptiwari/governed-healthcare-ai-agent/actions/runs/45659469860) | PARTIAL | M13/M15 local changes have no hosted evidence. The protected original-case evaluation was not verified on GitHub. Trigger Docker manually at final SHA if path filtering skips it. |
+| Public repository, final hash and submission reply | Existing remote and main verified privately. No final candidate SHA has been created. | PENDING | Confirm actual deadline, obtain explicit approvals, verify public visibility and final SHA, then provide only URL and hash in the original reply. |
+
+### Separate recommendations
+
+- **Assignment submission — NO-GO now.** Mandatory latest report and public delivery are pending. A transparent timeboxed submission remains an owner decision once publication and exact-SHA checks are complete. Keep the failed gate visible.
+- **Functional evaluation — NO-GO.** The default gate exits 1. Point and count claims need the faster scoped upstream query or authorized claims projection identified in M13.
+- **Security readiness — NO-GO for real PHI.** Private synthetic review and a targeted publication scan are supported. Real PHI requires verified production identity, boundaries, immutable audit and secure operations.
+- **Production release — NO-GO.** Default p95 and the representative concurrency target remain unmet. Availability, retention, cloud cost and failover recovery lack production evidence.
+
+### Approval and publication checklist
+
+1. Review the local candidate, latest report and known default failure. Confirm the assessment deadline before proceeding.
+2. Approve the final commit, then authorize pushing that exact candidate to private main. Exclude local agent instructions and M14 materials. Verify staged additions and their content before committing.
+3. Verify remote main equals the resulting full SHA and rerun applicable hosted checks at that SHA. Report any applicable gate failure separately from Docker.
+4. Obtain separate permission to make the repository public. Verify anonymous availability and full main SHA afterward. Return the final URL and hash for submission. No commit, push, visibility change or submission was made in M15.
+
+Proposed final commit message: `Finalize assignment validation and record default evaluation results`.
+
+## Pre-submission model provider verification
+
+**Status: NOT VERIFIED with a genuine LLM.** The configurable `ChatCompletionsProvider` implements the `ModelProvider` protocol over a real HTTP chat-completions adapter. Existing tests inject a provider or mock the HTTP transport. No approved endpoint, model/deployment name, pricing configuration or provider credential was available in the checked environment. No live request was made, so a genuine provider name, model name, token usage, inference latency and estimated live cost are unavailable. The six representative live scenarios and the optional live full evaluation were not run. The deterministic scores remain 32/40 default and 36/40 diagnostic.
+
+Source inspection confirms that rep authentication and member entitlement checks run before the model path. The model receives an allowlisted vocabulary projection and returns a typed intent. Reserved operations from the model are rejected. Deterministic tool handlers choose authorized routes, and the grievance POST requires an explicit action for a stored draft. Existing simulated tests cover parts of these boundaries. This source and test evidence does not establish how a genuine provider behaves under the proposed scenarios.
+
+### Independent source check of fixture conflicts
+
+The check used the supplied mock's scoped HTTP reads and matched policy rows directly by tenant, enrolled product and year. It did not depend on the application's retrieval or conflict-verification helpers. No member or claim identifier was recorded in this summary.
+
+| Case | Authoritative evidence | Finding |
+|---|---|---|
+| EV-23 | The enrolled product's 2026 behavioral-health row in `gold_ppo_2026.md` disagrees with the expected offer. The matching virtual-care text is in `virtual_care_2026.md`, whose metadata is for the other tenant. | Fixture conflict supported. |
+| EV-25 | The 2026 limit in `silver_hmo_2026.md` minus the scoped 2026 accumulator yields a different balance. Using the limit in `silver_hmo_2027.md` with the 2026 accumulator reproduces the fixture amount exactly. | Fixture conflict supported. The arithmetic confirms the cross-year mismatch. |
+| EV-34 | The scoped claim API returned `DENIED` and the returned record matched the requested member. The fixture expects `PAID`. | Fixture conflict supported. |
+| EV-37 | The enrolled product uses `choice_ppo_2026.md`. Its generic copay differs from the expected amount and wording, which match `value_hdhp_2026.md`. | Fixture conflict supported. |
+
+The expectations, gate and application were unchanged. No credential, environment file, or model run was added.
+
+## Owner decision for final packaging
+
+The owner accepted the disclosed results for the timeboxed assessment, including the failed 32/40 default gate, the separate 36/40 diagnostic pass, the four source-verified fixture conflicts and the absence of genuine model execution. Approval covers committing the reviewed candidate and verifying it on the private GitHub repository. Public visibility and submission remain separate decisions. Production release remains NO-GO.

@@ -51,7 +51,19 @@ def contains_fact(answer, fact):
         return bool(re.search(rf"\b{target}\s+(?:visits?|denied claims|paid claims|pended claims|in_process claims)\b", text))
     if fact in STATUS_FACTS:
         return f"Claim status: {fact}." in answer
+    if target == "match":
+        return bool(re.search(r"(?<!\w)match(?:es)?(?!\w)", text)
+                    and not re.search(r"\b(?:no|not|never)\b[^.;]*\bmatch(?:es)?\b", text))
     return bool(re.search(r"(?<!\w)" + re.escape(target) + r"(?!\w)", text))
+
+
+def latency_summary(values):
+    ordered = sorted(values)
+    if not ordered:
+        return {"count": 0, "p50_ms": None, "p95_ms": None, "p99_ms": None, "max_ms": None}
+    return {"count": len(ordered), **{
+        f"p{p}_ms": ordered[math.ceil(p / 100 * len(ordered)) - 1] for p in (50, 95, 99)
+    }, "max_ms": ordered[-1]}
 
 
 def wait_ready(client, process):
@@ -202,6 +214,11 @@ def execute(settings, cases, observer):
                     facts_ok = previous.get("verified") is True
 
             audit = app.state.store.audit(cid)
+            events = [event for turn in audit for event in turn["events"]]
+            downstream = [event for event in events if event.get("downstream")]
+            claims = [event for event in downstream if event["operation"] in {"claim", "claim_page"}]
+            model = [event for event in events if event["operation"] == "model"
+                     and "ms" in event and event["decision"] != "cost_denied"]
             safety = safety_case(case)
             fixture_ok = (verify_conflict(case, previous, app, observer, headers)
                           if behavior_ok and not facts_ok and not safety else None)
@@ -212,10 +229,22 @@ def execute(settings, cases, observer):
                 "verified_fixture_conflict": fixture_ok,
                 "safety_case": safety,
                 "turn_ms": turn_ms,
-                "downstream_calls": sum(event.get("downstream", False) for turn in audit for event in turn["events"]),
-                "retries": sum(event.get("retry", False) for turn in audit for event in turn["events"]),
-                "claim_calls": sum(event.get("downstream", False) and event["operation"] in {"claim", "claim_page"}
-                                   for turn in audit for event in turn["events"]),
+                "downstream_calls": len(downstream),
+                "retries": sum(event["retry"] for event in downstream),
+                "claim_calls": len(claims),
+                "claims_http_ms": [event["ms"] for event in claims],
+                "claims_success_ms": [event["ms"] for event in claims if event["decision"] == "200"],
+                "tool_ms": [event["ms"] for event in events if event.get("downstream")
+                            or event["operation"] in {"knowledge", "claims_cache"}],
+                "retry_wait_ms": [event["ms"] for event in events if event["operation"] == "retry_wait"],
+                "retry_http_ms": [event["ms"] for event in downstream if event["retry"]],
+                "budget_limited_turns": sum(any(event["decision"] in {
+                    "deadline_timeout", "budget_denied", "cost_denied", "cost_exceeded",
+                } for event in turn["events"]) for turn in audit),
+                "model_ms": [event["ms"] for event in model],
+                "model_usage_reports": sum("prompt_tokens" in event for event in model),
+                "prompt_tokens": sum(event.get("prompt_tokens", 0) for event in model),
+                "completion_tokens": sum(event.get("completion_tokens", 0) for event in model),
                 "estimated_model_cost": round(sum(event["estimated_model_cost"] for event in audit), 8),
             })
     return report
@@ -273,15 +302,24 @@ def main():
                     process.terminate()
                 process.wait(timeout=5)
                 process.stdout.close()
-    durations = sorted(value for row in results for value in row["turn_ms"])
+    timings = {key: latency_summary(value for row in results for value in row[key]) for key in (
+        "turn_ms", "claims_http_ms", "claims_success_ms", "tool_ms", "retry_wait_ms", "retry_http_ms", "model_ms",
+    )}
     summary = {
         "suite_version": fixture["version"], "mode": "model" if settings.model_url else "local_rules",
         "passed": sum(row["pass"] for row in results), "total": len(results),
         "verified_fixture_conflicts": sum(row["verified_fixture_conflict"] is True for row in results),
-        "p50_turn_ms": durations[math.ceil(.50 * len(durations)) - 1],
-        "p95_turn_ms": durations[math.ceil(.95 * len(durations)) - 1],
-        "max_turn_ms": max(durations),
-        **{key: sum(row[key] for row in results) for key in ("downstream_calls", "claim_calls", "retries")},
+        "p50_turn_ms": timings["turn_ms"]["p50_ms"],
+        "p95_turn_ms": timings["turn_ms"]["p95_ms"],
+        "p99_turn_ms": timings["turn_ms"]["p99_ms"],
+        "max_turn_ms": timings["turn_ms"]["max_ms"],
+        "latency": timings,
+        **{key: sum(row[key] for row in results) for key in (
+            "downstream_calls", "claim_calls", "retries", "budget_limited_turns", "model_usage_reports",
+            "prompt_tokens", "completion_tokens",
+        )},
+        "average_estimated_model_cost_usd": round(
+            sum(row["estimated_model_cost"] for row in results) / len(results), 8),
         "claim_budget_seconds": settings.claim_seconds, "gate_passed": bool(gate(results, baseline, expected_ids)),
         "cases": results,
     }

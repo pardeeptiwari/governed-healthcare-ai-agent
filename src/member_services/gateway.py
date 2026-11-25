@@ -84,7 +84,14 @@ class Gateway:
                 if response.status_code == 429 and not intent and attempt == 0:
                     delay = float(response.headers.get("Retry-After", "nan"))
                     if self.budget.steps and math.isfinite(delay) and 0 <= delay < self.budget.remaining():
+                        retry_started = monotonic()
                         await asyncio.sleep(delay)
+                        waited = monotonic() - retry_started
+                        start += waited
+                        self.budget.events.append({
+                            "operation": "retry_wait", "decision": "completed",
+                            "ms": round(waited * 1000),
+                        })
                         continue
                 if intent and response.status_code == 503:
                     if attempt == 0:
@@ -101,6 +108,7 @@ class Gateway:
                     raise ValueError
                 return payload
             except (TimeoutError, httpx.TimeoutException) as exc:
+                decision = "deadline_timeout"
                 if intent:
                     raise UncertainWrite from exc
                 raise Deadline from exc

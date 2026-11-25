@@ -147,3 +147,24 @@ The prepared candidate remains local. A reviewed Git commit, GitHub destination,
 Moved container verification to the dedicated Ubuntu Actions workflow. It checks the default image command, readiness, health, non-root execution, writable SQLite state, member authorization, a synthetic benefits turn and SSN refusal. It logs failures before container and network cleanup. The default evaluation gate remains a separate check.
 
 Workflow structure, Bash syntax and Git whitespace validation passed. The targeted scan covered 41 candidate files and 117 historical blobs, with no supplied credentials, sampled fixture identifiers, selected secret signatures, or supplied-pack paths found. A successful hosted Docker run is still pending. No commit or push was made.
+
+The approved candidate `f44a16a249fee1987159f565f62617c7edcd7780` was pushed to `main` in the verified private repository. The Ubuntu runner completed the image build and all mandatory Docker smoke checks successfully. The default evaluation gate remains a separate 32/40 failure. [Docker smoke run 45659469860](https://github.com/pardeeptiwari/governed-healthcare-ai-agent/actions/runs/45659469860)
+
+## 2026-11-25 · M13 performance and production readiness assessment
+
+AI assisted with the benchmark, tests, design review and documentation. Instrumented sanitized tool and model timings, actual retry waits, token counters and rate-budget observations. Fixed the negated-match scorer and categorized model and gateway timeouts as deadline failures. The regression gate and original fixture were preserved.
+
+- The default replay passed 32/40 and failed the gate. All nine safety cases passed. Turn p50/p95/p99 was 56/3,031/3,039 ms and four turns reached a budget limit. The six-second diagnostic passed 36/40 with all nine safety cases, four fixture conflicts and no budget-limited turns. Its p50/p95/p99 was 37/2,574/4,059 ms. Neither run invoked a model.
+- A local synthetic 250-turn benefit burst returned 119 correct at a 4,746 ms p95. It uses an in-process HTTP stub and local SQLite and cannot establish GCP capacity. The all-in 30-day target ceiling is USD 18,000 at 20,000 conversations/day. Deployed spend, live model cost and workflow availability remain unmeasured.
+- Python 3.11.18 passed 39 tests. Ruff and Git whitespace checks passed. The four design sections and one-page NOTES fit the A4 layout in Chromium at 11 pt and 18 mm margins. The architecture diagram now names the proposed GCP topology.
+- The hosted Docker evidence applies to `f44a16a`. M13 is local and has no hosted execution at its current revision. The [readiness matrix](FINAL_REVIEW.md#m13-performance-and-production-readiness-assessment) records the remaining gaps and separate recommendations. No M13 commit, push, publication or submission was made.
+
+## 2026-11-25 · M15 final submission validation
+
+AI assisted with the independent mandatory-deliverable review and evidence checks. The isolated source snapshot imported its own application with existing Python 3.11 dependencies. All 39 tests, the separate 32-case security and integration subset, and Ruff passed. The real loopback mock and Uvicorn health endpoints returned 200. The authorized conversation and turn returned their expected 201 and 200 outcomes.
+
+The fresh default replay completed all 40 original cases. It scored 32/40, passed all nine safety cases, recorded a 3,016 ms p95 and exited 1. Confirmed writes produced one matching grievance each and stable replay. Cancellation and read-only scenarios produced no grievance. No live model endpoint was configured. [Fresh default report](evaluation/m15-default.json)
+
+The targeted scan covered 41 tracked files, 44 candidate files, 41 historical paths and 133 historical blobs. It found no prohibited paths, exact supplied pack copies, tested supplied identifiers, selected credential signatures or M14 material. The design and NOTES fit the verified A4 layout. GitHub confirmed private main at `f44a16a` with successful regression and Docker jobs. Those jobs did not run on the local M15 candidate.
+
+The [M15 readiness review](FINAL_REVIEW.md#m15-final-assignment-submission-validation) records the no-go decisions and proposed final commit message. No commit, push, visibility change or submission was made.

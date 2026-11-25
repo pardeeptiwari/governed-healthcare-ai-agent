@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from member_services.gateway import Budget, Unavailable
+from member_services.gateway import Budget, Deadline, Unavailable
 from member_services.ports import ModelCompletion
 from member_services.routing import classify
 
@@ -36,6 +36,22 @@ def test_model_projection_and_budget():
                 await classify(settings, client, denied, "Claim status")
             assert denied.events[-1]["decision"] == "cost_denied"
             assert calls == ["claim"]
+
+    asyncio.run(run())
+
+
+def test_model_timeout_is_recorded_as_deadline_exhaustion():
+    settings = SimpleNamespace(input_per_million=1, output_per_million=1)
+
+    class Provider:
+        async def complete(self, *, instruction, projection, max_tokens):
+            raise httpx.ReadTimeout("synthetic provider timeout")
+
+    async def run():
+        budget = Budget(4, monotonic() + 3, .02)
+        with pytest.raises(Deadline):
+            await classify(settings, None, budget, "Claim status", provider=Provider())
+        assert budget.events[-1]["decision"] == "deadline_timeout"
 
     asyncio.run(run())
 

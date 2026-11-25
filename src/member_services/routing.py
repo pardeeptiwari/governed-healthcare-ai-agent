@@ -1,8 +1,10 @@
 import asyncio
 import re
 
+import httpx
+
 from .domain import SPECIALTIES, Intent
-from .gateway import Unavailable
+from .gateway import Deadline, Unavailable
 from .model_provider import ChatCompletionsProvider
 from .ports import ModelProvider
 
@@ -113,6 +115,9 @@ async def classify(settings, client, budget, text, *, provider: ModelProvider | 
                 raise ValueError("Model proposed a reserved operation")
             result = "allowed"
             return intent
+    except (TimeoutError, httpx.TimeoutException) as exc:
+        result = "deadline_timeout"
+        raise Deadline from exc
     except Exception as exc:
         raise Unavailable from exc
     finally:

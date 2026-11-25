@@ -235,6 +235,19 @@ The estimates total **8 hours 45 minutes** for the assessed slice and review, wi
 - Check candidate artifacts and Git history for supplied-pack material and credential signatures. Keep local agent instructions outside the submission candidate.
 - Preserve the failed three-second gate and label the six-second run as diagnostic. Run `.github/workflows/docker-smoke.yml` on `ubuntu-latest` after approval to push the candidate to a private repository. The workflow uses only generated fixtures and runs on demand and on relevant changes. Record the run URL and result before marking Docker verification complete.
 - Prepare the candidate for owner review. Public visibility, a destination, the final commit hash, and submission remain subject to separate publication authorization.
+- **Hosted Docker evidence** The verified private repository's `main` ran the image build and mandatory smoke checks successfully for `f44a16a249fee1987159f565f62617c7edcd7780`. [Ubuntu Docker smoke run](https://github.com/pardeeptiwari/governed-healthcare-ai-agent/actions/runs/45659469860)
+
+### M13. Performance and production readiness assessment
+
+- Reproduce default and diagnostic results without changing the gate or supplied pack. Record sanitized latency, budget, tool, retry and model telemetry.
+- Review the GCP topology, claims and filing dependencies, Azure mapping, and evidence for each production target.
+- Check the four-page design, separate architecture diagram, ADRs and reviewer instructions. Stop for owner review before any further submission or publication work.
+
+### M15. Final assignment submission validation
+
+- Review the candidate against the original brief, rerun the default gate in an isolated source snapshot, and preserve the result even when it fails.
+- Reconcile hosted run evidence with the remote and local revisions. Check page limits, documentation, and the candidate and Git history for prohibited material.
+- Record the submission decision and remaining approvals in FINAL_REVIEW.md. Commit, push and visibility changes require explicit owner authorization.
 
 ## Testing strategy and traceability
 
