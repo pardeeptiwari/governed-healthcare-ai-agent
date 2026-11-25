@@ -1,7 +1,9 @@
 import asyncio
 import hashlib
 import hmac
+import json
 import re
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from datetime import date
 from time import monotonic
@@ -9,6 +11,9 @@ from uuid import uuid4
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from langsmith import tracing_context
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Literal
 
@@ -39,6 +44,7 @@ def create_app():
 def build_app(settings, *, upstream_transport=None, model_transport=None):
     kb = Knowledge(settings.pack / "kb")
     state = State(settings.database)
+    claim_cache = OrderedDict()
     # Bounded lock table for the single-process SQLite slice.
     locks = [asyncio.Lock() for _ in range(64)]
 
@@ -59,6 +65,10 @@ def build_app(settings, *, upstream_transport=None, model_transport=None):
     app = FastAPI(lifespan=lifespan)
     app.state.store = state
     app.state.knowledge = kb
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_request(_request, _error):
+        return JSONResponse(status_code=422, content={"detail": "Invalid request."})
 
     def authenticate(authorization):
         supplied = (authorization or "").removeprefix("Bearer ")
@@ -101,22 +111,25 @@ def build_app(settings, *, upstream_transport=None, model_transport=None):
                 if prior[0] != digest:
                     raise HTTPException(409, "Turn identifier already used.")
                 if prior[1]:
-                    import json
                     return json.loads(prior[1])
                 return outcome("pending_reconciliation", "This turn has an unresolved outcome.")
 
             time_limit = settings.turn_seconds
-            if is_message and re.search(r"\b(claims?|appeal|c\d{6,})\b", body.message, re.I):
+            if is_message and re.search(
+                r"\b(claims?|appeal|c\d{6,}|owe|owed|billed)\b", body.message, re.I
+            ):
                 time_limit = settings.claim_seconds
             budget = Budget(session["steps"], start_time + min(session["seconds"], time_limit), session["cost"])
-            gateway = Gateway(settings, app.state.upstream, kb, session["tenant"], session["member"], budget)
+            gateway = Gateway(settings, app.state.upstream, kb, session["tenant"], session["member"],
+                              budget, claim_cache)
             if budget.remaining() <= 0 or budget.steps <= 0:
                 budget.events.append({"operation": "turn", "decision": "budget_denied"})
                 result = outcome("cannot_answer", "The conversation budget was exhausted.")
             elif is_message:
-                graph_state = await app.state.graph.ainvoke(
-                    {"message": body.message}, context=(gateway, session, app.state.clock)
-                )
+                with tracing_context(enabled=False):
+                    graph_state = await app.state.graph.ainvoke(
+                        {"message": body.message}, context=(gateway, session, app.state.clock)
+                    )
                 result = graph_state["result"]
             else:
                 result = await apply_action(body.action, body.draft_id, session, gateway,
@@ -132,4 +145,3 @@ def build_app(settings, *, upstream_transport=None, model_transport=None):
             return result
 
     return app
-

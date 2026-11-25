@@ -1,5 +1,6 @@
 import asyncio
 import math
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from time import monotonic
@@ -44,10 +45,11 @@ class Budget:
 
 
 class Gateway:
-    def __init__(self, settings, client, kb, tenant, member, budget):
+    def __init__(self, settings, client, kb, tenant, member, budget, claim_cache):
         self.settings, self.client, self.kb = settings, client, kb
         self.tenant, self.member, self.budget = tenant, member, budget
         self.member_path = f"/tenants/{tenant}/members/{member}"
+        self.claim_cache = claim_cache
 
     async def request(self, operation, path, *, params=None, directory=False, intent=None):
         headers = (
@@ -103,7 +105,7 @@ class Gateway:
         )}
 
     def check_member(self, data):
-        if data.get("member_id") != self.member:
+        if not isinstance(data, dict) or data.get("member_id") != self.member:
             self.budget.events.append({"operation": "scope", "decision": "deny"})
             raise Missing
 
@@ -116,12 +118,15 @@ class Gateway:
     async def directory(self, specialty):
         data = await self.request("member_location", self.member_path)
         self.check_member(data)
+        network, postal_code = data["network_id"], data["address"]["zip"]
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9-]{1,31}", network) or not re.fullmatch(r"[0-9]{5}", postal_code):
+            self.budget.events.append({"operation": "provider_search", "decision": "invalid_fields"})
+            raise Unavailable
         result = await self.request("provider_search", "/directory/v3/providers", directory=True,
                                     params={"specialty": specialty, "query": specialty,
-                                            "network_id": data["network_id"],
-                                            "zip": data["address"]["zip"], "limit": 10})
+                                            "network_id": network, "zip": postal_code, "limit": 10})
         return [provider["name"] for provider in result["results"]
-                if data["network_id"] in provider["networks"]]
+                if network in provider["networks"]]
 
     @staticmethod
     def project_claim(data):
@@ -138,24 +143,44 @@ class Gateway:
         return self.project_claim(data)
 
     async def claim_pages(self):
+        key = self.tenant, self.member
+        start = self.budget.begin("claims_cache")
+        cached = self.claim_cache.get(key)
+        if cached and cached[0] > monotonic():
+            self.claim_cache.move_to_end(key)
+            self.budget.record("claims_cache", start, "hit")
+            for page in cached[1]:
+                yield page
+            return
+        self.claim_cache.pop(key, None)
+        self.budget.record("claims_cache", start, "miss")
         path = self.member_path + "/claims"
         cursor = 0
+        pages = []
         while True:
             page = await self.request("claim_page", path, params={"cursor": cursor, "page_size": 5})
             projected = []
+            if not isinstance(page["data"], list) or len(page["data"]) > 5:
+                raise Unavailable
             for claim in page["data"]:
                 self.check_member(claim)
                 projected.append(self.project_claim(claim))
-            yield projected
+            pages.append(projected)
             if page["next"] is None:
+                self.claim_cache[key] = monotonic() + 60, pages
+                self.claim_cache.move_to_end(key)
+                if len(self.claim_cache) > 128:
+                    self.claim_cache.popitem(last=False)
+                yield projected
                 return
             link = urlsplit(page["next"])
             query = parse_qs(link.query)
             if (link.scheme or link.netloc or link.fragment or link.path != path
-                    or not projected or len(projected) > 5
+                    or not projected
                     or query != {"cursor": [str(cursor + len(projected))], "page_size": ["5"]}):
                 self.budget.events.append({"operation": "pagination", "decision": "deny"})
                 raise Unavailable
+            yield projected
             cursor += len(projected)
 
     async def grievances(self):
@@ -180,4 +205,3 @@ class Gateway:
         if outcome is None:
             raise Unavailable
         return outcome
-

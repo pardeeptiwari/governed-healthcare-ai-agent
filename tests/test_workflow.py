@@ -1,6 +1,5 @@
 import json
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 
 import httpx
 import pytest
@@ -139,4 +138,3 @@ def test_cancel_and_concurrent_write_replay(scenario):
     assert len(writes) == 1
     assert sum(r.method == "POST" for r in outgoing) == 2
     assert turn(client, cid, turn_id="5", message="Specialist visit").status_code == 409
-

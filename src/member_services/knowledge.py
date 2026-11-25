@@ -61,4 +61,3 @@ class Knowledge:
             float(scores[n]), eligible[n][0] == product, eligible[n][1],
         ))
         return eligible[index][2:]
-

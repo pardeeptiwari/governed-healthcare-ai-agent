@@ -6,6 +6,7 @@ from time import time
 from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.runtime import Runtime
 from typing_extensions import TypedDict
 
 from .gateway import Missing, Unavailable, UncertainWrite
@@ -172,7 +173,7 @@ def draft(message, session):
     category = next((key for key, pattern in categories.items() if re.search(pattern, message, re.I)), "other")
     # The rep reviews the exact text that will be filed. It stays in the bound
     # session and upstream grievance record.
-    description = re.sub(r"\b\d{3}[- ]?\d{2}[- ]?\d{4}\b", "[redacted]", message).strip()
+    description = re.sub(r"\b\d{3}[. -]?\d{2}[. -]?\d{4}\b", "[redacted]", message).strip()
     if not description or len(description) > 2000:
         return outcome("clarify", "Provide a grievance description of at most 2,000 characters.")
     fields = {"category": category, "description": description, "expedite_requested": False}
@@ -183,7 +184,7 @@ def draft(message, session):
 
 
 def create_graph(settings, model_client):
-    async def respond(state, runtime):
+    async def respond(state: TurnState, runtime: Runtime[tuple]):
         gateway, session, today = runtime.context
         original = state["message"]
         message = original.lower()
@@ -227,12 +228,10 @@ def create_graph(settings, model_client):
                 raise Unavailable
         except Missing:
             result = outcome("not_in_tenant", "The requested record could not be found in this session.")
-        except (Unavailable, ValueError, KeyError, TypeError, ArithmeticError):
+        except (Unavailable, ValueError, KeyError, TypeError, AttributeError, ArithmeticError):
             result = outcome("cannot_answer", "The information is unavailable from the authorized sources.")
         return {"result": result}
 
-    from langgraph.runtime import Runtime
-    respond.__annotations__["runtime"] = Runtime[tuple]
     graph = StateGraph(TurnState, context_schema=tuple)
     graph.add_node("respond", respond)
     graph.add_edge(START, "respond")
@@ -269,4 +268,3 @@ async def apply_action(action, draft_id, session, gateway, persist):
     intent["receipt"] = result
     del intent["body"]
     return result
-

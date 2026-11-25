@@ -1,0 +1,38 @@
+name: External assessment evaluation
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    environment: assessment-evaluation
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install .
+      - name: Download reviewed pack and run gate
+        env:
+          REP_CREDENTIALS_JSON: ${{ secrets.REP_CREDENTIALS_JSON }}
+          TENANT_TOKENS_JSON: ${{ secrets.TENANT_TOKENS_JSON }}
+          DIRECTORY_KEY: ${{ secrets.DIRECTORY_KEY }}
+          PACK_ARCHIVE_URL: ${{ secrets.PACK_ARCHIVE_URL }}
+          PACK_ARCHIVE_SHA256: ${{ vars.PACK_ARCHIVE_SHA256 }}
+          PACK_SUBDIR: ${{ vars.PACK_SUBDIR }}
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/assessment.zip"
+          curl --proto '=https' --fail --silent --output "$archive" "${PACK_ARCHIVE_URL:?Missing pack URL}"
+          [[ "$PACK_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ ]]
+          printf '%s  %s\n' "$PACK_ARCHIVE_SHA256" "$archive" | sha256sum --check --status
+          python -m zipfile -e "$archive" "$RUNNER_TEMP/assessment"
+          export ASSIGNMENT_PACK="$RUNNER_TEMP/assessment/${PACK_SUBDIR:-.}"
+          python -m member_services.evaluate --baseline evaluation/report.json --report runtime-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sanitized-evaluation-report
+          path: runtime-report.json

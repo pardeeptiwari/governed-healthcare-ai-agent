@@ -39,4 +39,3 @@ class Settings:
             output_per_million=float(os.getenv("MODEL_OUTPUT_PER_MILLION", "0")),
             claim_seconds=float(os.getenv("CLAIM_SECONDS", "3")),
         )
-

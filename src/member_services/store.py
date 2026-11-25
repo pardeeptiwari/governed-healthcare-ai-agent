@@ -51,4 +51,3 @@ class State:
             return [json.loads(row[0]) for row in db.execute(
                 "SELECT audit FROM turns WHERE conversation=? AND audit IS NOT NULL ORDER BY rowid", (identifier,)
             )]
-

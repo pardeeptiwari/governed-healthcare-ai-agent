@@ -34,7 +34,7 @@ def guarded_intent(message):
         return Intent(operation="verify" if re.search(r"\blast (four|4)\b", message) and
                       not re.search(r"\b(full|entire|complete)\b", message) else "decline")
     if "grievance" in message and re.search(r"\b(file|submit|create)\b", message) and not re.search(
-        r"\b(filed|deadline|already|do not|don't|without)\b", message
+        r"\b(filed|deadline)\b|\b(?:do not|don't|never|without)\s+(?:file|submit|create)\b", message
     ):
         return Intent(operation="draft")
     return None
@@ -47,7 +47,9 @@ def local_intent(message):
         return Intent(operation="grievance_status")
     if re.search(r"\b(find|search|locate)\b", message) and any(k in message for k in SPECIALTIES):
         return Intent(operation="provider")
-    if "claim" in message or re.search(r"\bc\d{6,}\b", message):
+    if ("claim" in message or re.search(r"\bc\d{6,}\b", message)
+            or (re.search(r"\b(?:owe|owed|paid|billed)\b", message)
+                and re.search(r"\b\d{4}-\d{2}-\d{2}\b", message))):
         return Intent(operation="claim_count" if "how many" in message else "claim")
     if "prior authorization" in message:
         return Intent(operation="unavailable")
@@ -63,14 +65,6 @@ def local_intent(message):
         if re.search(pattern, message):
             return Intent(operation="benefit", subject=subject)
     return Intent(operation="unavailable")
-
-
-def sanitized(message):
-    message = re.sub(r"\b(?:\d{3}[- ]?\d{2}[- ]?\d{4}|[MCG]\d[\d-]{5,})\b",
-                     "[identifier]", message, flags=re.I)
-    message = re.sub(r"\S+@\S+|\b\d{4}-\d\d-\d\d\b|(?:\+?1[- .]?)?(?:\(\d{3}\)|\d{3})[- .]\d{3}[- .]\d{4}",
-                     "[redacted]", message)
-    return message
 
 
 async def classify(settings, client, budget, text):
@@ -138,4 +132,3 @@ async def classify(settings, client, budget, text):
         raise Unavailable from exc
     finally:
         budget.record("model", start, result, **usage_metrics)
-
