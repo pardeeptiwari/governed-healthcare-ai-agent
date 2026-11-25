@@ -97,19 +97,20 @@ async def classify(settings, client, budget, text, *, provider: ModelProvider | 
                 projection=projection,
                 max_tokens=max_tokens,
             )
-            intent = Intent.model_validate_json(completion.content)
-            if intent.operation in {"draft", "verify", "decline"}:
-                raise ValueError
             if completion.prompt_tokens is not None and completion.completion_tokens is not None:
-                usage_metrics = {
-                    "prompt_tokens": int(completion.prompt_tokens),
-                    "completion_tokens": int(completion.completion_tokens),
-                }
+                prompt, output = completion.prompt_tokens, completion.completion_tokens
+                if type(prompt) is not int or type(output) is not int or min(prompt, output) < 0:
+                    raise ValueError("Invalid model token usage")
+                usage_metrics = {"prompt_tokens": prompt, "completion_tokens": output}
                 budget.model_cost += ((usage_metrics["prompt_tokens"] * settings.input_per_million
                                        + usage_metrics["completion_tokens"] * settings.output_per_million)
                                       / 1_000_000 - estimated)
             if budget.model_cost > budget.model_remaining:
-                raise ValueError
+                result = "cost_exceeded"
+                raise ValueError("Model usage exceeded available budget")
+            intent = Intent.model_validate_json(completion.content)
+            if intent.operation in {"draft", "verify", "decline"}:
+                raise ValueError("Model proposed a reserved operation")
             result = "allowed"
             return intent
     except Exception as exc:

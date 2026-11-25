@@ -38,3 +38,11 @@ Hardened policy ingestion and retrieval. Front matter requires explicit delimite
 - Ruff passed. pytest passed all 18 tests. New fixtures cover tenant and product isolation, effective-date boundaries, renewal years, missing evidence, metadata quarantine, and conflicting rows.
 - The external mock replay passed the regression gate with 36/40 raw passes and four verified fixture conflicts. The wrong-tenant document remained excluded. The rerun report is local and ignored.
 - AI assisted with review, implementation, and verification. M3 changes are pending owner review before committing.
+
+## 2026-11-25 · M4 bounded LangGraph orchestration
+
+Model usage is accounted for even when the classifier response is invalid or proposes a reserved operation. Invalid counters leave the estimate in place. A response that exceeds the remaining cost budget cannot route the workflow. New API tests verify that duplicate read turns replay the prior result without another upstream request or budget charge, conflicting turn payloads return 409, and exhausted step or time budgets stop before upstream I/O.
+
+- Ruff passed and pytest passed all 25 tests, including model input projection and rejected completion tests.
+- All 40 supplied scenarios ran against the local mock. The gate passed with 36/40 raw passes and four verified fixture conflicts. The rerun report is local and ignored.
+- No approved live model endpoint was configured. Provider boundary verification used a simulated provider. AI assisted with implementation and test verification. M4 is pending owner review before committing.

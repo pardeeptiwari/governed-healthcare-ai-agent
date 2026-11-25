@@ -138,3 +138,32 @@ def test_cancel_and_concurrent_write_replay(scenario):
     assert len(writes) == 1
     assert sum(r.method == "POST" for r in outgoing) == 2
     assert turn(client, cid, turn_id="5", message="Specialist visit").status_code == 409
+
+
+def test_read_replay_does_not_repeat_upstream_calls_or_consume_budget(scenario):
+    client, outgoing, _ = scenario
+    cid = conversation(client)
+    first = turn(client, cid, turn_id="one", message="Specialist visit")
+    state = client.app.state.store.load(cid)
+    assert first.status_code == 200
+    assert turn(client, cid, turn_id="one", message="Specialist visit").json() == first.json()
+    assert turn(client, cid, turn_id="one", message="Primary care").status_code == 409
+    assert len(outgoing) == 2
+    assert client.app.state.store.load(cid) == state
+    assert len(client.app.state.store.audit(cid)) == 1
+
+
+@pytest.mark.parametrize("limit", ["steps", "seconds"])
+def test_exhausted_conversation_budget_stops_before_upstream_io(scenario, limit):
+    client, outgoing, _ = scenario
+    cid = conversation(client)
+    store = client.app.state.store
+    state = store.load(cid)
+    state[limit] = 0
+    store.save(cid, state)
+
+    response = turn(client, cid, turn_id="one", message="Specialist visit")
+
+    assert response.json()["outcome"] == "cannot_answer"
+    assert len(outgoing) == 1  # Startup health only.
+    assert store.audit(cid)[0]["events"] == [{"operation": "turn", "decision": "budget_denied"}]
