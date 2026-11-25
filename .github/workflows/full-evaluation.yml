@@ -5,6 +5,7 @@ permissions:
 jobs:
   evaluate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: assessment-evaluation
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +26,27 @@ jobs:
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/assessment.zip"
-          curl --proto '=https' --fail --silent --output "$archive" "${PACK_ARCHIVE_URL:?Missing pack URL}"
+          curl --proto '=https' --connect-timeout 10 --max-time 120 --fail --silent \
+            --output "$archive" "${PACK_ARCHIVE_URL:?Missing pack URL}"
           [[ "$PACK_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ ]]
           printf '%s  %s\n' "$PACK_ARCHIVE_SHA256" "$archive" | sha256sum --check --status
           python -m zipfile -e "$archive" "$RUNNER_TEMP/assessment"
-          export ASSIGNMENT_PACK="$RUNNER_TEMP/assessment/${PACK_SUBDIR:-.}"
+          ASSIGNMENT_PACK=$(python - <<'PY'
+          import os
+          from pathlib import Path
+
+          root = (Path(os.environ["RUNNER_TEMP"]) / "assessment").resolve()
+          pack = (root / (os.environ.get("PACK_SUBDIR") or ".")).resolve()
+          if not pack.is_relative_to(root):
+              raise SystemExit("PACK_SUBDIR must stay inside the reviewed archive")
+          print(pack)
+          PY
+          )
+          export ASSIGNMENT_PACK
           python -m member_services.evaluate --baseline evaluation/report.json --report runtime-report.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: sanitized-evaluation-report
           path: runtime-report.json
+          retention-days: 7

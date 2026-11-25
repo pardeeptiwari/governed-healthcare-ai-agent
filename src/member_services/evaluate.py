@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 
 from .api import build_app
 from .config import Settings
+from .logging_policy import suppress_transport_logs
 from .routing import local_intent
 
 SUITE_SIZE = 40
@@ -215,6 +216,7 @@ def gate(results, baseline, expected_ids):
 
 
 def main():
+    suppress_transport_logs()
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", type=Path, default=Path("evaluation/report.json"))
     parser.add_argument("--baseline", type=Path)

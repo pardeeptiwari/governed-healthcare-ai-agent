@@ -19,12 +19,14 @@ from .config import Settings
 from .domain import Health, Start, Turn
 from .gateway import Budget, Gateway
 from .knowledge import Knowledge
+from .logging_policy import suppress_transport_logs
 from .ports import EvaluationClock, FixedClock, ModelProvider, StateRepository
 from .store import State
 from .workflow import apply_action, create_graph, outcome
 
 
 def create_app() -> FastAPI:
+    suppress_transport_logs()
     return build_app(Settings.from_env())
 
 

@@ -120,6 +120,21 @@ def test_identity_and_directory_minimization(scenario):
     assert "3344" not in json.dumps(client.app.state.store.audit(cid))
 
 
+def test_audit_omits_request_and_transport_payloads(scenario):
+    client, _, _ = scenario
+    cid = conversation(client)
+    raw = "Specialist visit for Synthetic Person, jane@example.test, 111-22-3344"
+
+    result = turn(client, cid, turn_id="one", message=raw)
+
+    assert result.json()["outcome"] == "answer"
+    audit = client.app.state.store.audit(cid)
+    assert audit[0]["events"]
+    payload = json.dumps(audit)
+    for private in (raw, "Synthetic Person", "jane@example.test", "111-22-3344", "M1111", "tenant-a"):
+        assert private not in payload
+
+
 def test_cancel_and_concurrent_write_replay(scenario):
     client, outgoing, writes = scenario
     cid = conversation(client)

@@ -62,3 +62,12 @@ Removed hardcoded case ID selectors from the evaluator. It now validates 40 uniq
 - Ruff passed and all 29 pytest tests passed.
 - The full external-mock replay passed the regression gate with 36/40 raw passes, nine passing safety cases, and four verified fixture conflicts. Measured p95 was 3.031 seconds. Refreshed the sanitized report from this run.
 - AI assisted with implementation and verification. M6 remains pending owner review before committing.
+
+## 2026-11-25 · M7 packaging, CI, and logging
+
+Added Ruff and a Linux container smoke test to public CI. The test generates a small KB and loopback health stub, then checks container health, non-root execution, and writable SQLite state. Bounded both GitHub jobs and the protected pack download, checked that the configured pack subdirectory stays within the reviewed archive, and set a seven-day report artifact retention. The application and evaluator entry points now suppress raw HTTP client diagnostics; the Docker command continues to disable Uvicorn access logging.
+
+- Ruff and all 30 pytest tests passed. Both workflow YAML files parsed, and embedded Bash commands and the image smoke script passed Bash syntax checks.
+- Confirmed with DEBUG logging enabled that HTTPX request URLs are suppressed. A synthetic API test verified audit events exclude the raw request, sample identifiers, and credentials.
+- The full mock replay passed the regression gate with 36/40 raw passes and four verified fixture conflicts.
+- Docker and hosted Actions still require verification. No container engine or Linux subsystem was available locally, and no GitHub remote was configured. AI assisted with implementation and verification. M7 is pending review before committing.
