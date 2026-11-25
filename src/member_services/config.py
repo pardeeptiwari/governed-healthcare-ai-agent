@@ -1,6 +1,7 @@
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 
 
@@ -9,12 +10,12 @@ class Settings:
     pack: Path
     upstream: str
     database: Path
-    reps: dict
-    upstream_tokens: dict
-    directory_key: str
+    reps: dict = field(repr=False)
+    upstream_tokens: dict = field(repr=False)
+    directory_key: str = field(repr=False)
     model_url: str = ""
     model_name: str = ""
-    model_key: str = ""
+    model_key: str = field(default="", repr=False)
     turn_seconds: float = 3.0
     claim_seconds: float = 3.0
     max_actions: int = 32
@@ -22,9 +23,23 @@ class Settings:
     model_budget: float = .02
     input_per_million: float = 0.0
     output_per_million: float = 0.0
+    evaluation_as_of: date | None = None
+
+    @property
+    def knowledge_path(self) -> Path:
+        return self.pack / "kb"
+
+    @property
+    def evaluation_path(self) -> Path:
+        return self.pack / "eval" / "conversations.json"
+
+    @property
+    def mock_script(self) -> Path:
+        return self.pack / "mock_services" / "server.py"
 
     @classmethod
-    def from_env(cls):
+    def from_env(cls) -> "Settings":
+        as_of = os.getenv("EVALUATION_AS_OF")
         return cls(
             pack=Path(os.environ["ASSIGNMENT_PACK"]),
             upstream=os.getenv("MOCK_URL", "http://127.0.0.1:8090"),
@@ -38,4 +53,5 @@ class Settings:
             input_per_million=float(os.getenv("MODEL_INPUT_PER_MILLION", "0")),
             output_per_million=float(os.getenv("MODEL_OUTPUT_PER_MILLION", "0")),
             claim_seconds=float(os.getenv("CLAIM_SECONDS", "3")),
+            evaluation_as_of=date.fromisoformat(as_of) if as_of else None,
         )

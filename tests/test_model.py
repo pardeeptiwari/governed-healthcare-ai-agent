@@ -1,7 +1,7 @@
 import asyncio
 import json
-from types import SimpleNamespace
 from time import monotonic
+from types import SimpleNamespace
 
 import httpx
 import pytest

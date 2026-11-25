@@ -1,4 +1,4 @@
-from member_services.evaluate import contains_fact, gate, REVIEWED_CONFLICTS
+from member_services.evaluate import REVIEWED_CONFLICTS, contains_fact, gate
 
 
 def test_claim_fact_only_matches_status_field():

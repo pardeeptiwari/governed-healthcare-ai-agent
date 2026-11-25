@@ -14,36 +14,30 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from langsmith import tracing_context
-from pydantic import BaseModel, ConfigDict, Field
-from typing_extensions import Literal
 
 from .config import Settings
+from .domain import Health, Start, Turn
 from .gateway import Budget, Gateway
 from .knowledge import Knowledge
+from .ports import EvaluationClock, FixedClock, ModelProvider, StateRepository
 from .store import State
 from .workflow import apply_action, create_graph, outcome
 
 
-class Start(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    member_id: str = Field(pattern=r"^M[0-9]{4,20}$")
-
-
-class Turn(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    turn_id: str = Field(pattern=r"^[a-zA-Z0-9_-]{1,80}$")
-    action: Literal["message", "confirm", "cancel"] = "message"
-    message: str | None = Field(default=None, min_length=1, max_length=4000)
-    draft_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
-
-
-def create_app():
+def create_app() -> FastAPI:
     return build_app(Settings.from_env())
 
 
-def build_app(settings, *, upstream_transport=None, model_transport=None):
-    kb = Knowledge(settings.pack / "kb")
-    state = State(settings.database)
+def build_app(
+    settings: Settings, *,
+    upstream_transport: httpx.AsyncBaseTransport | None = None,
+    model_transport: httpx.AsyncBaseTransport | None = None,
+    clock: EvaluationClock | None = None,
+    model_provider: ModelProvider | None = None,
+    state_repository: StateRepository | None = None,
+) -> FastAPI:
+    kb = Knowledge(settings.knowledge_path)
+    state: StateRepository = state_repository if state_repository is not None else State(settings.database)
     claim_cache = OrderedDict()
     # Bounded lock table for the single-process SQLite slice.
     locks = [asyncio.Lock() for _ in range(64)]
@@ -57,9 +51,12 @@ def build_app(settings, *, upstream_transport=None, model_transport=None):
         ):
             health = await upstream.get("/health", timeout=2)
             health.raise_for_status()
-            app.state.clock = date.fromisoformat(health.json()["clock"])
+            app.state.evaluation_clock = clock if clock is not None else FixedClock(
+                settings.evaluation_as_of or date.fromisoformat(health.json()["clock"])
+            )
+            app.state.clock = app.state.evaluation_clock.today()
             app.state.upstream = upstream
-            app.state.graph = create_graph(settings, model)
+            app.state.graph = create_graph(settings, model, model_provider=model_provider)
             yield
 
     app = FastAPI(lifespan=lifespan)
@@ -80,8 +77,8 @@ def build_app(settings, *, upstream_transport=None, model_transport=None):
         raise HTTPException(401, "Authentication required.")
 
     @app.get("/health")
-    async def health():
-        return {"status": "ok"}
+    async def health() -> Health:
+        return Health()
 
     @app.post("/v1/conversations", status_code=201)
     async def start(body: Start, authorization: str | None = Header(default=None)):
@@ -128,7 +125,7 @@ def build_app(settings, *, upstream_transport=None, model_transport=None):
             elif is_message:
                 with tracing_context(enabled=False):
                     graph_state = await app.state.graph.ainvoke(
-                        {"message": body.message}, context=(gateway, session, app.state.clock)
+                        {"message": body.message}, context=(gateway, session, app.state.evaluation_clock.today())
                     )
                 result = graph_state["result"]
             else:

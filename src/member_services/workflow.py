@@ -10,6 +10,7 @@ from langgraph.runtime import Runtime
 from typing_extensions import TypedDict
 
 from .gateway import Missing, Unavailable, UncertainWrite
+from .ports import ModelProvider
 from .routing import BENEFITS, SPECIALTIES, classify
 
 
@@ -183,7 +184,7 @@ def draft(message, session):
                    draft={"id": pending["id"], **fields})
 
 
-def create_graph(settings, model_client):
+def create_graph(settings, model_client, *, model_provider: ModelProvider | None = None):
     async def respond(state: TurnState, runtime: Runtime[tuple]):
         gateway, session, today = runtime.context
         original = state["message"]
@@ -196,7 +197,7 @@ def create_graph(settings, model_client):
                 foreign = "prairie sky health" if gateway.tenant == "plan_a" else "harborview health plan"
                 if foreign in message:
                     raise Missing
-            intent = await classify(settings, model_client, gateway.budget, original)
+            intent = await classify(settings, model_client, gateway.budget, original, provider=model_provider)
             if intent.operation == "decline":
                 result = outcome("decline", "I can verify the last four digits. I cannot disclose a full SSN.")
             elif intent.operation == "verify":

@@ -1,20 +1,10 @@
 import asyncio
 import re
-from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
-
+from .domain import Intent
 from .gateway import Unavailable
-
-
-class Intent(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    operation: Literal["benefit", "claim", "claim_count", "appeal", "grievance_status",
-                       "draft", "verify", "decline", "provider", "unavailable"]
-    subject: Literal["specialist", "emergency", "generic", "video", "therapy",
-                     "virtual_behavioral", "urgent", "primary", "deductible", "oop", "pt_limit",
-                     "other"] = "other"
-
+from .model_provider import ChatCompletionsProvider
+from .ports import ModelProvider
 
 BENEFITS = {
     "specialist": "Specialist visit", "emergency": "Emergency room",
@@ -67,13 +57,13 @@ def local_intent(message):
     return Intent(operation="unavailable")
 
 
-async def classify(settings, client, budget, text):
+async def classify(settings, client, budget, text, *, provider: ModelProvider | None = None):
     lower = text.lower()
     guarded = guarded_intent(lower)
     if guarded:
         budget.events.append({"operation": "classify", "decision": "policy"})
         return guarded
-    if not settings.model_url:
+    if provider is None and not settings.model_url:
         budget.events.append({"operation": "classify", "decision": "local_rules"})
         return local_intent(lower)
 
@@ -102,25 +92,23 @@ async def classify(settings, client, budget, text):
     usage_metrics = {}
     try:
         async with asyncio.timeout(budget.remaining()):
-            response = await client.post(
-                settings.model_url,
-                headers={"Authorization": f"Bearer {settings.model_key}"} if settings.model_key else {},
-                json={"model": settings.model_name, "temperature": 0, "max_tokens": max_tokens,
-                      "response_format": {"type": "json_object"}, "messages": [
-                          {"role": "system", "content":
-                           "Classify member-services keywords. Return JSON with operation and optional subject. "
-                           "Never select draft, verify, or decline. Schema: " + str(Intent.model_json_schema())},
-                          {"role": "user", "content": projection},
-                      ]},
+            active_provider = provider if provider is not None else ChatCompletionsProvider(
+                client, settings.model_url, settings.model_name, settings.model_key
             )
-            response.raise_for_status()
-            payload = response.json()
-            intent = Intent.model_validate_json(payload["choices"][0]["message"]["content"])
+            completion = await active_provider.complete(
+                instruction="Classify member-services keywords. Return JSON with operation and optional subject. "
+                            "Never select draft, verify, or decline. Schema: " + str(Intent.model_json_schema()),
+                projection=projection,
+                max_tokens=max_tokens,
+            )
+            intent = Intent.model_validate_json(completion.content)
             if intent.operation in {"draft", "verify", "decline"}:
                 raise ValueError
-            usage = payload.get("usage") or {}
-            if "prompt_tokens" in usage and "completion_tokens" in usage:
-                usage_metrics = {key: int(usage[key]) for key in ("prompt_tokens", "completion_tokens")}
+            if completion.prompt_tokens is not None and completion.completion_tokens is not None:
+                usage_metrics = {
+                    "prompt_tokens": int(completion.prompt_tokens),
+                    "completion_tokens": int(completion.completion_tokens),
+                }
                 budget.model_cost += ((usage_metrics["prompt_tokens"] * settings.input_per_million
                                        + usage_metrics["completion_tokens"] * settings.output_per_million)
                                       / 1_000_000 - estimated)

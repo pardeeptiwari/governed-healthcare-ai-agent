@@ -4,12 +4,12 @@ A FastAPI assistant for health plan representatives. A LangGraph workflow routes
 
 ## Setup
 
-Use Python 3.11. Keep the extracted assessment pack outside this repository. Run these commands in Bash or adapt environment assignments for PowerShell.
+Use Python 3.11. Keep the extracted assessment pack outside this repository. Use `.env.example` as a template and export the values in your shell. The application reads the process environment. Run these commands in Bash or adapt environment assignments for PowerShell.
 
 ```sh
 python3.11 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e '.[test]'
+python -m pip install -e '.[test,lint]'
 export ASSIGNMENT_PACK=/absolute/path/to/extracted/pack
 export REP_CREDENTIALS_JSON='{"replace-with-random-rep-key":{"tenant":"plan_a","rep":"demo-a"},"replace-with-another-random-key":{"tenant":"plan_b","rep":"demo-b"}}'
 export TENANT_TOKENS_JSON='{"plan_a":"<token from data README>","plan_b":"<token from data README>"}'
@@ -23,6 +23,7 @@ python -B "$ASSIGNMENT_PACK/mock_services/server.py" --port 8090 >/dev/null 2>&1
 ```
 
 Run the slice as one process with a writable local SQLite database. Set `MOCK_URL` to change the upstream origin and `STATE_DB` to change the database location.
+The evaluation clock defaults to the date reported by the mock health endpoint. Set `EVALUATION_AS_OF` to an ISO date for a controlled local run, and leave it unset for the supplied benchmark.
 
 ```sh
 uvicorn member_services.api:create_app --factory --no-access-log
@@ -45,6 +46,7 @@ Development and the committed baseline use the built-in deterministic intent cla
 ### Test and evaluate
 
 ```sh
+python -m ruff check .
 python -m pytest -q
 python -m member_services.evaluate --baseline evaluation/report.json --report runtime-report.json
 ```

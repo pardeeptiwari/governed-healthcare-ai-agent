@@ -27,9 +27,10 @@ CASE_IDS = {f"EV-{index:02}" for index in range(1, 41)}
 def contains_fact(answer, fact):
     text, target = answer.casefold(), str(fact).casefold()
     amounts = re.compile(r"\$([0-9,]+(?:\.\d{1,2})?)")
-    if amounts.fullmatch(target):
-        dollars = lambda amount: Decimal(amount.replace(",", ""))
-        return any(dollars(value) == dollars(amounts.fullmatch(target)[1]) for value in amounts.findall(text))
+    expected_amount = amounts.fullmatch(target)
+    if expected_amount:
+        expected = Decimal(expected_amount[1].replace(",", ""))
+        return any(Decimal(value.replace(",", "")) == expected for value in amounts.findall(text))
     if target.isdecimal():
         return bool(re.search(rf"\b{target}\s+(?:visits?|denied claims|paid claims|pended claims|in_process claims)\b", text))
     if fact in {"PAID", "DENIED", "PENDED", "IN_PROCESS"}:
@@ -196,12 +197,12 @@ def main():
     args = parser.parse_args()
     settings = Settings.from_env()
     upstream = f"http://127.0.0.1:{args.port}"
-    fixture = json.loads((settings.pack / "eval" / "conversations.json").read_text(encoding="utf-8"))
+    fixture = json.loads(settings.evaluation_path.read_text(encoding="utf-8"))
     baseline = json.loads(args.baseline.read_text(encoding="utf-8"))["cases"] if args.baseline else []
     with tempfile.TemporaryDirectory() as workspace:
         settings = replace(settings, upstream=upstream, database=Path(workspace) / "run.sqlite", claim_seconds=6)
         with httpx.Client(base_url=upstream, timeout=.5, trust_env=False) as observer:
-            process = subprocess.Popen([sys.executable, "-B", str(settings.pack / "mock_services" / "server.py"),
+            process = subprocess.Popen([sys.executable, "-B", str(settings.mock_script),
                                         "--port", str(args.port)],
                                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
             try:
