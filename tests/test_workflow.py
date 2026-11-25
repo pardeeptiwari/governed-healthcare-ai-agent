@@ -10,7 +10,7 @@ from member_services.config import Settings
 
 
 @pytest.fixture
-def scenario(tmp_path):
+def scenario(tmp_path, request):
     pack = tmp_path / "pack"
     for tenant in ("plan_a", "plan_b"):
         folder = pack / "kb" / tenant
@@ -67,6 +67,8 @@ def scenario(tmp_path):
             key = request.headers["Idempotency-Key"]
             if key not in writes:
                 writes[key] = request.content
+                if lose_acknowledgment:
+                    raise httpx.ReadTimeout("Simulated lost acknowledgement")
                 return httpx.Response(503, json={})
             assert writes[key] == request.content
             return httpx.Response(200, headers={"Idempotent-Replayed": "true"},
@@ -74,6 +76,7 @@ def scenario(tmp_path):
                                         "category": json.loads(request.content)["category"]})
         raise AssertionError(path)
 
+    lose_acknowledgment = getattr(request, "param", False)
     with TestClient(build_app(settings, upstream_transport=httpx.MockTransport(upstream))) as client:
         yield client, outgoing, writes
 
@@ -167,3 +170,50 @@ def test_exhausted_conversation_budget_stops_before_upstream_io(scenario, limit)
     assert response.json()["outcome"] == "cannot_answer"
     assert len(outgoing) == 1  # Startup health only.
     assert store.audit(cid)[0]["events"] == [{"operation": "turn", "decision": "budget_denied"}]
+
+
+def test_edited_and_foreign_drafts_require_their_own_approval(scenario):
+    client, _, writes = scenario
+    cid, foreign = conversation(client), conversation(client)
+    initial = turn(client, cid, turn_id="one", message="File a billing grievance.").json()["draft"]
+    revised = turn(client, cid, turn_id="two", message="File a quality of care grievance.").json()["draft"]
+    assert revised["id"] != initial["id"]
+    assert turn(client, cid, turn_id="three", action="confirm", draft_id=initial["id"]).json()["outcome"] == "no_write"
+    assert turn(client, foreign, turn_id="one", action="confirm", draft_id=revised["id"]).json()["outcome"] == "no_write"
+    assert turn(client, cid, B, turn_id="four", action="confirm", draft_id=revised["id"]).status_code == 404
+    assert not writes
+    receipt = turn(client, cid, turn_id="five", action="confirm", draft_id=revised["id"]).json()
+    assert receipt["outcome"] == "filed"
+    assert list(map(json.loads, writes.values())) == [{key: value for key, value in revised.items() if key != "id"}]
+
+
+def test_draft_cannot_be_confirmed_at_expiry(scenario, monkeypatch):
+    client, _, writes = scenario
+    cid = conversation(client)
+    monkeypatch.setattr("member_services.workflow.time", lambda: 1000)
+    draft = turn(client, cid, turn_id="one", message="File a billing grievance.").json()["draft"]
+    monkeypatch.setattr("member_services.workflow.time", lambda: 1900)
+
+    response = turn(client, cid, turn_id="two", action="confirm", draft_id=draft["id"])
+
+    assert response.json()["outcome"] == "no_write"
+    assert not writes
+
+
+@pytest.mark.parametrize("scenario", [True], indirect=True)
+def test_lost_write_acknowledgment_blocks_further_creates(scenario):
+    client, outgoing, writes = scenario
+    cid = conversation(client)
+    draft = turn(client, cid, turn_id="one", message="File a billing grievance.").json()["draft"]
+    action = {"action": "confirm", "draft_id": draft["id"]}
+    original = turn(client, cid, turn_id="two", **action).json()
+    assert original["outcome"] == "pending_reconciliation"
+    intent = client.app.state.store.load(cid)["intent"]
+    assert intent["state"] == "uncertain"
+    assert writes == {intent["key"]: intent["body"].encode()}
+    assert turn(client, cid, turn_id="two", **action).json() == original
+    assert turn(client, cid, turn_id="three", **action).json()["outcome"] == "pending_reconciliation"
+    assert turn(client, cid, turn_id="four", message="File a billing grievance.").json()["outcome"] == (
+        "pending_reconciliation"
+    )
+    assert sum(request.method == "POST" for request in outgoing) == 1

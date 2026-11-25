@@ -247,7 +247,10 @@ async def apply_action(action, draft_id, session, gateway, persist):
     if prior and prior["draft"] == draft_id:
         gateway.budget.events.append({"operation": action, "decision": "already_confirmed"})
         return prior.get("receipt") or outcome("pending_reconciliation", "Filing is pending reconciliation.")
-    if not pending or pending["id"] != draft_id or pending["expires"] < time():
+    if prior and prior["state"] in {"sending", "uncertain"}:
+        gateway.budget.events.append({"operation": action, "decision": "reconciliation_required"})
+        return outcome("pending_reconciliation", "Filing is pending reconciliation.")
+    if not pending or pending["id"] != draft_id or pending["expires"] <= time():
         gateway.budget.events.append({"operation": action, "decision": "draft_denied"})
         return outcome("no_write", "There is no matching active draft.")
     gateway.budget.events.append({"operation": action, "decision": "allowed"})

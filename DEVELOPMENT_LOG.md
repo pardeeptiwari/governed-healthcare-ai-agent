@@ -46,3 +46,11 @@ Model usage is accounted for even when the classifier response is invalid or pro
 - Ruff passed and pytest passed all 25 tests, including model input projection and rejected completion tests.
 - All 40 supplied scenarios ran against the local mock. The gate passed with 36/40 raw passes and four verified fixture conflicts. The rerun report is local and ignored.
 - No approved live model endpoint was configured. Provider boundary verification used a simulated provider. AI assisted with implementation and test verification. M4 is pending owner review before committing.
+
+## 2026-11-25 · M5 grievance approval and idempotency
+
+Made draft expiry inclusive and blocked further draft actions while a confirmed operation in the conversation is sending or pending reconciliation. Tests verify that edits invalidate prior approval, a draft from another conversation or tenant cannot be approved, and the approved request body matches the displayed revision. A simulated post-commit timeout verifies the durable key and request body, stable turn replay, and one outbound create attempt.
+
+- Ruff passed. pytest passed all 28 tests.
+- The full external-mock replay passed the regression gate with 36/40 raw passes and four verified fixture conflicts. The confirmation and cancellation cases passed.
+- The local reconciliation block applies to the conversation. Production recovery across downstream restarts still requires durable downstream deduplication and operation lookup. AI assisted with implementation and verification. M5 remains pending review before committing.
