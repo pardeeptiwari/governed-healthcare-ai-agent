@@ -4,9 +4,11 @@ import re
 from dataclasses import dataclass, field
 from datetime import date
 from time import monotonic
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 import httpx
+
+from .domain import SPECIALTIES
 
 
 class Unavailable(Exception):
@@ -51,7 +53,7 @@ class Gateway:
         self.member_path = f"/tenants/{tenant}/members/{member}"
         self.claim_cache = claim_cache
 
-    async def request(self, operation, path, *, params=None, directory=False, intent=None):
+    async def _request(self, operation, path, *, params=None, directory=False, intent=None):
         headers = (
             {"X-Api-Key": self.settings.directory_key} if directory
             else {"Authorization": "Bearer " + self.settings.upstream_tokens[self.tenant]}
@@ -71,8 +73,8 @@ class Gateway:
                 if response.status_code == 404:
                     raise Missing
                 if response.status_code == 429 and not intent and attempt == 0:
-                    delay = float(response.headers.get("Retry-After", "0"))
-                    if math.isfinite(delay) and 0 <= delay < self.budget.remaining():
+                    delay = float(response.headers.get("Retry-After", "nan"))
+                    if self.budget.steps and math.isfinite(delay) and 0 <= delay < self.budget.remaining():
                         await asyncio.sleep(delay)
                         continue
                 if intent and response.status_code == 503:
@@ -98,8 +100,12 @@ class Gateway:
         raise Unavailable
 
     async def benefits(self):
-        data = await self.request("benefits", self.member_path + "/benefits")
+        data = await self._request("benefits", self.member_path + "/benefits")
         self.check_member(data)
+        data["accumulators"] = self._project_fields(data.get("accumulators"), (
+            "plan_year", "as_of", "deductible_met_individual",
+            "out_of_pocket_met_individual", "physical_therapy_visits_used",
+        ))
         return {key: data[key] for key in (
             "product_code", "plan_name", "coverage_status", "coverage_termination", "accumulators"
         )}
@@ -110,33 +116,68 @@ class Gateway:
             raise Missing
 
     async def verify(self, suffix):
-        data = await self.request("member_verify", self.member_path)
+        data = await self._request("member_verify", self.member_path)
         self.check_member(data)
-        digits = "".join(char for char in data.get("ssn", "") if char.isdigit())
+        ssn = data.get("ssn")
+        if not isinstance(ssn, str):
+            raise Unavailable
+        digits = "".join(char for char in ssn if char.isascii() and char.isdigit())
         return len(digits) == 9 and digits[-4:] == suffix
 
     async def directory(self, specialty):
-        data = await self.request("member_location", self.member_path)
+        if specialty not in SPECIALTIES.values():
+            raise Unavailable
+        data = await self._request("member_location", self.member_path)
         self.check_member(data)
         network, postal_code = data["network_id"], data["address"]["zip"]
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9-]{1,31}", network) or not re.fullmatch(r"[0-9]{5}", postal_code):
             self.budget.events.append({"operation": "provider_search", "decision": "invalid_fields"})
             raise Unavailable
-        result = await self.request("provider_search", "/directory/v3/providers", directory=True,
+        result = await self._request("provider_search", "/directory/v3/providers", directory=True,
                                     params={"specialty": specialty, "query": specialty,
                                             "network_id": network, "zip": postal_code, "limit": 10})
-        return [provider["name"] for provider in result["results"]
-                if network in provider["networks"]]
+        providers = result.get("results")
+        if not isinstance(providers, list):
+            raise Unavailable
+        names = []
+        for provider in providers:
+            fields = self._project_fields(provider, ("name", "networks"))
+            name, networks = fields.get("name"), fields.get("networks")
+            if not isinstance(name, str) or not isinstance(networks, list):
+                raise Unavailable
+            if network in networks:
+                names.append(name)
+        return names
 
     @staticmethod
-    def project_claim(data):
-        return {key: data[key] for key in (
-            "claim_id", "service_date", "processed_date", "status", "service",
-            "plan_paid", "member_responsibility", "denial",
+    def _project_fields(data, fields):
+        if not isinstance(data, dict):
+            raise Unavailable
+        return {key: data[key] for key in fields if key in data}
+
+    def project_claim(self, data):
+        claim = {key: data[key] for key in (
+            "claim_id", "service_date", "processed_date", "status", "plan_paid",
         )}
+        date.fromisoformat(claim["service_date"])
+        if claim["processed_date"] is not None:
+            date.fromisoformat(claim["processed_date"])
+        if claim["status"] not in {"IN_PROCESS", "PENDED", "PAID", "DENIED"}:
+            raise Unavailable
+        claim["service"] = self._project_fields(data.get("service"), ("description",))
+        claim["member_responsibility"] = self._project_fields(
+            data.get("member_responsibility"), ("deductible", "copay", "coinsurance")
+        )
+        if claim["status"] == "PAID" and len(claim["member_responsibility"]) != 3:
+            raise Unavailable
+        denial = data.get("denial")
+        claim["denial"] = None if denial is None else self._project_fields(denial, ("carc",))
+        return claim
 
     async def claim(self, claim_id):
-        data = await self.request("claim", f"/tenants/{self.tenant}/claims/{claim_id}")
+        if not re.fullmatch(r"C[0-9]{6,20}", claim_id):
+            raise Unavailable
+        data = await self._request("claim", f"/tenants/{self.tenant}/claims/{claim_id}")
         self.check_member(data)
         if data["claim_id"] != claim_id:
             raise Missing
@@ -158,7 +199,7 @@ class Gateway:
         cursor = 0
         pages = []
         while True:
-            page = await self.request("claim_page", path, params={"cursor": cursor, "page_size": 5})
+            page = await self._request("claim_page", path, params={"cursor": cursor, "page_size": 5})
             projected = []
             if not isinstance(page["data"], list) or len(page["data"]) > 5:
                 raise Unavailable
@@ -173,26 +214,33 @@ class Gateway:
                     self.claim_cache.popitem(last=False)
                 yield projected
                 return
-            link = urlsplit(page["next"])
-            query = parse_qs(link.query)
-            if (link.scheme or link.netloc or link.fragment or link.path != path
-                    or not projected
-                    or query != {"cursor": [str(cursor + len(projected))], "page_size": ["5"]}):
+            next_cursor = cursor + len(projected)
+            continuation = page["next"]
+            if not isinstance(continuation, str) or continuation.partition("?")[0] != path:
+                self.budget.events.append({"operation": "pagination", "decision": "deny"})
+                raise Unavailable
+            link = urlsplit(continuation)
+            if (len(projected) != 5 or link.fragment
+                    or sorted(parse_qsl(link.query, keep_blank_values=True))
+                    != [("cursor", str(next_cursor)), ("page_size", "5")]):
                 self.budget.events.append({"operation": "pagination", "decision": "deny"})
                 raise Unavailable
             yield projected
-            cursor += len(projected)
+            cursor = next_cursor
 
     async def grievances(self):
-        response = await self.request("grievances", self.member_path + "/grievances")
-        for row in response["data"]:
+        response = await self._request("grievances", self.member_path + "/grievances")
+        rows = response.get("data")
+        if not isinstance(rows, list):
+            raise Unavailable
+        for row in rows:
             self.check_member(row)
             yield {key: row[key] for key in ("grievance_id", "received_date", "status")}
 
     async def file(self, intent):
         if intent["tenant"] != self.tenant or intent["member"] != self.member or intent["state"] != "sending":
             raise UncertainWrite
-        result = await self.request("grievance_create", self.member_path + "/grievances", intent=intent)
+        result = await self._request("grievance_create", self.member_path + "/grievances", intent=intent)
         self.check_member(result)
         if result["category"] != intent["category"] or not result.get("grievance_id"):
             raise UncertainWrite

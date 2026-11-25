@@ -4,6 +4,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+SPECIALTIES = {"dermatolog": "Dermatology", "cardiolog": "Cardiology", "neurolog": "Neurology",
+               "pediatric": "Pediatrics", "orthoped": "Orthopedics", "primary care": "Primary Care"}
+
 
 class Start(BaseModel):
     model_config = ConfigDict(extra="forbid")

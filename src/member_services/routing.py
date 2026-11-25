@@ -1,7 +1,7 @@
 import asyncio
 import re
 
-from .domain import Intent
+from .domain import SPECIALTIES, Intent
 from .gateway import Unavailable
 from .model_provider import ChatCompletionsProvider
 from .ports import ModelProvider
@@ -14,10 +14,6 @@ BENEFITS = {
     "deductible": "Deductible (individual / family)", "oop": "Out-of-pocket maximum (individual / family)",
     "pt_limit": "Physical therapy visit limit",
 }
-
-SPECIALTIES = {"dermatolog": "Dermatology", "cardiolog": "Cardiology", "neurolog": "Neurology",
-               "pediatric": "Pediatrics", "orthoped": "Orthopedics", "primary care": "Primary Care"}
-
 
 def guarded_intent(message):
     if re.search(r"\b(ssn|social security(?: number)?)\b", message):

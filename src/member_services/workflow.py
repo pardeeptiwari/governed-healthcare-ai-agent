@@ -9,9 +9,10 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
 from typing_extensions import TypedDict
 
+from .domain import SPECIALTIES
 from .gateway import Missing, Unavailable, UncertainWrite
 from .ports import ModelProvider
-from .routing import BENEFITS, SPECIALTIES, classify
+from .routing import BENEFITS, classify
 
 
 class TurnState(TypedDict):

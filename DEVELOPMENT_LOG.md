@@ -22,3 +22,11 @@ Reviewed `AGENTS.md`, the approved plan, and the original brief, API contract, a
 | Application smoke test | FastAPI startup reached the actual mock. The application's `GET /health` returned 200. The process was stopped and the temporary SQLite state cleaned up. |
 
 The 40-case benchmark was outside this foundation validation. The clock, state, and model-provider injection tests used synthetic fixtures. AI assisted with source review, implementation, and local verification. Changes are pending owner review before committing.
+
+## 2026-11-25 · M2 governed tool gateway
+
+Tightened the existing gateway at the upstream boundary. Claim requests validate identifiers, project nested fields, and validate status and dates before caching. Pagination checks the same scoped route, the expected next cursor, and the page size before proceeding. Only complete snapshots are cached. The directory gateway enforces the shared specialty allowlist before making a request and validates its response shape. Claims retries require a finite nonnegative `Retry-After` value and remaining time and step budget.
+
+- Ruff passed. pytest passed all 15 tests, including new cases for retry limits, malformed pages, nested-field projection, and complete snapshot caching.
+- The external mock replay passed the gate with 36/40 raw passes and four verified fixture conflicts. The rerun report is local and ignored. The committed baseline was retained for comparison.
+- AI assisted with review, implementation, and verification. M2 changes are pending owner review before committing.
